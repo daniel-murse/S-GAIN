@@ -18,7 +18,7 @@
 import numpy as np
 from utils import binary_sampler
 from keras.datasets import mnist
-
+#https://jundongl.github.io/scikit-feature/datasets.html 
 def data_loader(data_name, miss_rate):
     '''Loads datasets and introduce missingness.
 

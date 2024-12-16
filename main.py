@@ -23,7 +23,21 @@ import numpy as np
 from data_loader import data_loader
 from utils import rmse_loss, save_imputation_results
 from gain import gain
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+from sklearn.ensemble import RandomForestRegressor
+def iterative_imputer(miss_data_x):
+    """Perform missing data imputation using Iterative Imputer."""
+    imputer = IterativeImputer(max_iter=10, random_state=0)
+    imputed_data_x = imputer.fit_transform(miss_data_x)
+    return imputed_data_x
 
+def iterative_imputer_rf(miss_data_x):
+    """Perform missing data imputation using Iterative Imputer with RandomForest."""
+    rf_regressor = RandomForestRegressor(n_estimators=100, random_state=0)
+    imputer = IterativeImputer(estimator=rf_regressor, max_iter=10, random_state=0)
+    imputed_data_x = imputer.fit_transform(miss_data_x)
+    return imputed_data_x
 
 def main(args, loop=False):
     '''Main function for UCI letter and spam datasets.
@@ -83,7 +97,27 @@ def main(args, loop=False):
 
     # Load data and introduce missingness
     ori_data_x, miss_data_x, data_m = data_loader(data_name, miss_rate)
-
+    #if args.method == 'GAIN':
+        # Impute missing data using GAIN
+        #imputed_data_x = gain(miss_data_x, gain_parameters)
+       # rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
+        #print(f'GAIN RMSE Performance (Run {i+1}): {np.round(rmse, 4)}')
+    
+    #elif args.method == 'IterativeImputer':
+        # Impute missing data using Iterative Imputer
+        #imputed_data_x = iterative_imputer(miss_data_x)
+        #rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
+        #print(f'Iterative Imputer RMSE Performance (Run {i+1}): {np.round(rmse, 4)}')
+        
+    #elif args.method == 'IterativeImputerRF':
+        # Impute using Iterative Imputer with RandomForest Regressor
+        #imputed_data_x = iterative_imputer_rf(miss_data_x)
+        #rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
+        #print(f'Iterative Imputer (RandomForest) RMSE Performance (Run {i+1}): {np.round(rmse, 4)}')
+    
+    #else:
+        #print("Invalid method selection. Exiting the program.")
+        #return
     # Impute missing data
     imputed_data_x, G_tensors = gain(miss_data_x, gain_parameters)
 
@@ -104,8 +138,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--data_name',
-        choices=['letter', 'spam'],
-        default='spam',
+        choices=['letter', 'spam','mnist'],
+        default='mnist',
         type=str)
     parser.add_argument(
         '--miss_rate',
@@ -140,7 +174,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--init',
         choices=['xavier', 'dense', 'full', 'random', 'erdos_renyi', 'er', 'snip', 'rsensitivity'],
-        default='xavier',
+        default='full',
         type=str)
     parser.add_argument(
         '--save',
