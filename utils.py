@@ -302,6 +302,13 @@ def erdos_renyi_kernel_init(tensors, sparsity, erk_power_scale=1.0, fix_seed=Fal
     return tensors
 
 
+def erdos_renyi_random_weights(tensors, sparsity, fix_seed=False):
+    'Maybe this works? If success: happy, if failure: at least I tried.'
+    dense_random_weights = random_init(tensors, sparsity, fix_seed)
+    erdos_renyi_sparsity_mask = erdos_renyi_init(tensors, sparsity, fix_seed)
+    return dense_random_weights * erdos_renyi_sparsity_mask
+
+
 def snip_init(tensors, sparsity, fix_seed=False):
     return tensors
 
@@ -371,18 +378,19 @@ def sample_batch_index(total, batch_size, seed=None):
     return batch_idx
 
 
-def save_imputation_results(data_save, data_name, miss_rate, sparsity, rmse, folder, tensors, init):
+def save_imputation_results(data_save, data_name, miss_rate, method, init, sparsity, rmse, tensors, folder):
     '''Saves the imputed data to a csv file
 
     Args:
         - data_save: the data to save
         - data_name: the name of the imputed dataset
         - miss_rate: the percentage of missing datapoints
+        - method: the method used (GAIN, IterativeImputer, IterativeImputerRF)
+        - init: the initialization function used
         - sparsity: the level of model sparsity (random or weight percentage, depending on the gain file used)
         - rmse: the RMSE score
         - folder: the folder to save the results in
         - tensors: the initialized tensors for the generator
-        - init: the initialization function
     '''
 
     # Set the folder paths and filename
@@ -390,7 +398,7 @@ def save_imputation_results(data_save, data_name, miss_rate, sparsity, rmse, fol
     folder_metrics = f'{folder}_metrics'
     path_metrics = f'{folder_metrics}/successes_and_failures.csv'
 
-    filename = f'{data_name}_missrate_{miss_rate}_sparsity_{sparsity}_init_{init}_rmse_{rmse}'
+    filename = f'{data_name}_missrate_{miss_rate}_{method}_{init}_sparsity_{sparsity}_rmse_{rmse}'
 
     # Avoid overwriting if rmse is the same
     if isfile(f'{folder}/{filename}.csv'):
@@ -417,32 +425,35 @@ def save_imputation_results(data_save, data_name, miss_rate, sparsity, rmse, fol
             tensor.to_csv(path_inits, index=False, header=False)
 
     # Save the metrics
-    header = ['dataset', 'miss_rate', 'sparsity', 'init', 'successes', 'failures']
+    header = ['dataset', 'miss_rate', 'method', 'init', 'sparsity', 'successes', 'failures']
     if isfile(path_metrics):
         metrics = pd.read_csv(path_metrics)
         if not metrics.loc[
             (metrics['dataset'] == data_name)
             & (metrics['miss_rate'] == miss_rate)
+            & (metrics['method'] == method)
+            & (metrics['init'] == init if init else metrics['init'].isnull())
             & (metrics['sparsity'] == sparsity)
-            & (metrics['init'] == init)
         ].empty:
             metrics.loc[
                 (metrics['dataset'] == data_name)
                 & (metrics['miss_rate'] == miss_rate)
-                & (metrics['sparsity'] == sparsity)
-                & (metrics['init'] == init), ['successes', 'failures']
+                & (metrics['method'] == method)
+                & (metrics['init'] == init if init else metrics['init'].isnull())
+                & (metrics['sparsity'] == sparsity),
+                ['successes', 'failures']
             ] += [1, 0] if rmse != 'nan' else [0, 1]
         else:
             if rmse != 'nan':
-                row = pd.DataFrame([[data_name, miss_rate, sparsity, init, 1, 0]], columns=header)
+                row = pd.DataFrame([[data_name, miss_rate, method, init, sparsity, 1, 0]], columns=header)
             else:
-                row = pd.DataFrame([[data_name, miss_rate, sparsity, init, 0, 1]], columns=header)
+                row = pd.DataFrame([[data_name, miss_rate, method, init, sparsity, 0, 1]], columns=header)
             metrics = pd.concat([metrics, row])
     else:
         if rmse != 'nan':
-            row = [[data_name, miss_rate, sparsity, init, 1, 0]]
+            row = [[data_name, miss_rate, method, init, sparsity, 1, 0]]
         else:
-            row = [[data_name, miss_rate, sparsity, init, 0, 1]]
+            row = [[data_name, miss_rate, method, init, sparsity, 0, 1]]
         metrics = pd.DataFrame(row, columns=header)
 
     # Save the success and failure count
@@ -456,7 +467,7 @@ def load_imputed_data(folder='imputed_data'):
         - folder: the folder to find the imputed data in
 
     Returns:
-        - a table with [data_name, miss_rate, sparsity, initialization, RMSE...]
+        - a table with [data_name, miss_rate, method, initialization, sparsity, RMSE...]
     '''
 
     concat_results = []
@@ -473,11 +484,12 @@ def load_imputed_data(folder='imputed_data'):
             split = f.split('_')
             data_name = split[0]
             miss_rate = split[2]
-            sparsity = split[4]
-            init = split[6]
+            method = split[3]
+            init = split[4]
+            sparsity = split[6]
             rmse = '0.' + split[8].split('.')[1]
 
-            results.append([data_name, miss_rate, sparsity, init, rmse])
+            results.append([data_name, miss_rate, method, init, sparsity, rmse])
 
         # Concatenate the results
         res_ = None
@@ -486,9 +498,9 @@ def load_imputed_data(folder='imputed_data'):
                 # Set res_ to result for the first item
                 res_ = result
             else:
-                # If the dataset, miss_rate, sparsity and initialization are the same, concat the RMSEs
-                if res_[0] == result[0] and res_[1] == result[1] and res_[2] == result[2] and res_[3] == result[3]:
-                    res_.append(result[4])
+                # If the dataset, miss_rate, method, initialization and sparsity are the same, concat the RMSEs
+                if res_[:5] == result[:5]:
+                    res_.append(result[5])
                 else:
                     concat_results.append(res_)
                     res_ = result

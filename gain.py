@@ -45,6 +45,7 @@ def gain(data_x, gain_parameters):
     Returns:
       - imputed_data: imputed data
     '''
+
     # Define mask matrix
     data_m = 1 - np.isnan(data_x)
 
@@ -89,15 +90,14 @@ def gain(data_x, gain_parameters):
 
     # Generator variables
     # Data + Mask as inputs (Random noise is in missing components)
-
     if init in ('dense', 'random'):
-        G_W1 = xavier_init([dim * 2, h_dim], seed=7)
-        G_W2 = xavier_init([h_dim, h_dim], seed=8)
-        G_W3 = xavier_init([h_dim, dim], seed=9)
+        G_W1 = xavier_init([dim * 2, h_dim])
+        G_W2 = xavier_init([h_dim, h_dim])
+        G_W3 = xavier_init([h_dim, dim])
 
         if init == 'random':
             print('initialize randomly')
-            G_W1, G_W2, G_W3 = random_init([G_W1, G_W2, G_W3], sparsity, fix_seed=True)
+            G_W1, G_W2, G_W3 = random_init([G_W1, G_W2, G_W3], sparsity)
 
     elif init in ('ER', 'ERK'):
         G_Ws = {
@@ -107,7 +107,7 @@ def gain(data_x, gain_parameters):
         }
         if init == 'ER':
             print('initialize by Erdos Renyi')
-            G_W1, G_W2, G_W3 = erdos_renyi_init(G_Ws, sparsity, fix_seed=True).values()
+            G_W1, G_W2, G_W3 = erdos_renyi_init(G_Ws, sparsity).values()
         else:
             assert 'ERK initialization not implemented'
 
@@ -187,13 +187,13 @@ def gain(data_x, gain_parameters):
     # Start Iterations
     for it in tqdm(range(iterations)):
         # Sample batch
-        batch_idx = sample_batch_index(no, batch_size, seed=it)
+        batch_idx = sample_batch_index(no, batch_size)
         X_mb = norm_data_x[batch_idx, :]
         M_mb = data_m[batch_idx, :]
         # Sample random vectors
-        Z_mb = uniform_sampler(0, 0.01, batch_size, dim, seed=it)
+        Z_mb = uniform_sampler(0, 0.01, batch_size, dim)
         # Sample hint vectors
-        H_mb_temp = binary_sampler(hint_rate, batch_size, dim, seed=it)
+        H_mb_temp = binary_sampler(hint_rate, batch_size, dim)
         H_mb = M_mb * H_mb_temp
 
         # Combine random vectors with observed vectors
@@ -204,7 +204,7 @@ def gain(data_x, gain_parameters):
                                                  feed_dict={X: X_mb, M: M_mb, H: H_mb})
 
     ## Return imputed data
-    Z_mb = uniform_sampler(0, 0.01, no, dim, seed=0)
+    Z_mb = uniform_sampler(0, 0.01, no, dim)
     M_mb = data_m
     X_mb = norm_data_x
     X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb

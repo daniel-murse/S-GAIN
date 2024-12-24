@@ -18,6 +18,7 @@
 import numpy as np
 from utils import binary_sampler
 from keras.datasets import mnist
+from keras.datasets import fashion_mnist
 #https://jundongl.github.io/scikit-feature/datasets.html 
 def data_loader(data_name, miss_rate):
     '''Loads datasets and introduce missingness.
@@ -34,11 +35,15 @@ def data_loader(data_name, miss_rate):
 
     # Load data
     if data_name in ['letter', 'spam']:
-        file_name = 'data/' + data_name + '.csv'
+        file_name = f'data/{data_name}.csv'
         data_x = np.loadtxt(file_name, delimiter=",", skiprows=1)
     elif data_name == 'mnist':
         (data_x, _), _ = mnist.load_data()
         data_x = np.reshape(np.asarray(data_x), [60000, 28 * 28]).astype(float)
+    elif data_name == 'fashion_mnist':
+        (data_x, _), _ = fashion_mnist.load_data()
+        data_x = np.reshape(np.asarray(data_x), [60000, 28 * 28]).astype(float)
+
 
     # Parameters
     no, dim = data_x.shape

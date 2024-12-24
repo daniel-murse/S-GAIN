@@ -35,16 +35,17 @@ This is done with intent to increase performance: i.e. decrease the RMSE, decrea
 - batch_size: batch size
 - hint_rate: hint rate
 - alpha: hyperparameter
-- iterations: iterations 
-- sparsity: generator sparsity level
-- init: xavier (dense, full), random, erdos_renyi (ER)
+- iterations: iterations
+- method: gain, iterative_imputer, iterative_imputer_rf
+- init: xavier (dense, full), random, erdos_renyi (ER) (GAIN only)
+- sparsity: generator sparsity level (Sparse GAIN only)
 - save: save imputation result to a csv file
 - folder: name of folder to save imputation results to
 
 ### Example command
 
 ```shell
-$ python main.py --data_name spam --miss_rate 0.2 --batch_size 128 --hint_rate 0.9 --alpha 100 --iterations 10000 --sparsity 0.9 --init random --save 1 --folder imputed_data
+$ python main.py --data_name spam --miss_rate 0.2 --batch_size 128 --hint_rate 0.9 --alpha 100 --iterations 10000 --method gain --init random --sparsity 0.9 --save --folder imputed_data
 ```
 
 ### Outputs
