@@ -1,32 +1,21 @@
-'''Loop for the main function.'''
+"""Loop for the main function."""
 
 from __future__ import absolute_import, division, print_function
 
 import argparse
 
+import pandas as pd
+
 from main import main
 from utils import load_imputed_data
 
 
-def get_runs(datasets=None, miss_rates=None, methods=None, inits=None, sparsities=None, n_runs=5, include=None,
-             exclude=None):
-    # The runs to execute
-    if datasets is None:
-        datasets = ['letter', 'spam']
-    if miss_rates is None:
-        miss_rates = [x / 10 for x in range(1, 10)]
-    if methods is None:
-        methods = ['gain']
-    if inits is None:
-        inits = ['dense', 'random', 'ER', 'ERK', 'SNIP', 'RSensitivity']
-    if sparsities is None:
-        sparsities = [x / 10 for x in range(1, 10)]
-
+def get_runs(datasets, miss_rates, methods, inits, sparsities, n_nearest_features, n_runs, include=None, exclude=None):
     runs = {}
     for method in methods:
         if method == 'gain':
             runs.update({
-                (dataset, miss_rate, 'gain', init, 0. if init in ('xavier', 'dense', 'full') else sparsity): n_runs
+                (dataset, miss_rate, 'gain', init, sparsity if init not in ('xavier', 'dense', 'full') else 0., None): n_runs
                 for dataset in datasets
                 for init in inits
                 for miss_rate in miss_rates
@@ -34,9 +23,10 @@ def get_runs(datasets=None, miss_rates=None, methods=None, inits=None, sparsitie
             })
         else:  # Iterative Imputers
             runs.update({
-                (dataset, miss_rate, method, '', 0.): n_runs
+                (dataset, miss_rate, method, '', 0., nnf): n_runs
                 for dataset in datasets
                 for miss_rate in miss_rates
+                for nnf in n_nearest_features
             })
 
     if include is not None: runs.update({
@@ -46,18 +36,26 @@ def get_runs(datasets=None, miss_rates=None, methods=None, inits=None, sparsitie
     # Remove completed runs from runs
     imputed_data = load_imputed_data()
     for data in imputed_data:
+        data_name, miss_rate, method, init, sparsity = data[:5]
+        nnf = data[5]
+
+        # Standardize data_name
+        if data_name == 'FashionMNIST':
+            data_name = 'fashion_mnist'
+        elif data_name == 'MNIST':
+            data_name = 'mnist'
+
         # Format the keys
-        method = data[2]
         if method == 'IterativeImputer':
-            key = (data[0], float(data[1]), 'iterative_imputer', '', float(data[4]))
+            key = (data_name, miss_rate, 'iterative_imputer', '', sparsity, nnf)
         elif method == 'IterativeImputerRF':
-            key = (data[0], float(data[1]), 'iterative_imputer_rf', '', float(data[4]))
+            key = (data_name, miss_rate, 'iterative_imputer_rf', '', sparsity, nnf)
         else:  # GAIN
-            key = (data[0], float(data[1]), 'gain', data[3], float(data[4]))
+            key = (data_name, miss_rate, 'gain', init, sparsity, nnf)
 
         # Remove runs
         if key in runs:
-            runs_left = n_runs - (len(data[4:]))
+            runs_left = n_runs - (len(data[6:]))
             if runs_left <= 0:
                 runs.pop(key)
             else:
@@ -72,24 +70,51 @@ def get_runs(datasets=None, miss_rates=None, methods=None, inits=None, sparsitie
 
 if __name__ == '__main__':
     # Set the parameters
-    datasets_run = ['letter']  # ['spam', 'letter', 'fashion_mnist']
+    datasets_run = ['health']  # ['spam', 'letter', 'fashion_mnist', 'health']
     miss_rates_run = [0.2]
-    methods_run = ['gain', 'iterative_imputer']
-    inits_run = ['dense', 'random', 'ER']  # GAIN only
-    sparsities_run = [0.95]  # Sparse GAIN only
-    n_runs_run = 3
+    methods_run = ['gain', 'iterative_imputer', 'iterative_imputer_rf']
+    inits_run = ['dense', 'random', 'ER', 'ERRW']  # GAIN only
+    sparsities_run = [0.6, 0.8, 0.9, 0.95, 0.99]  # Sparse GAIN only
+    n_nearest_features_run = [None]  # Iterative Imputers only
+    n_runs_run = 10
+
+    # Inclusions
+    include = [
+        # (dataset, miss_rate, method, init, sparsity, n_nearest_features)
+        ('fashion_mnist', 0.2, method, '', 0., 100)
+        for method in ['iterative_imputer', 'iterative_imputer_rf']
+    ]
 
     # Exclusions
     exclude = [
-        #     (dataset, miss_rate, 'gain', sparsity, 'ER')
-        #     for dataset in datasets_run
-        #     for miss_rate in miss_rates_run
-        #     for sparsity in [0.6, 0.8, 0.9, 0.95]
+        # (dataset, miss_rate, method, init, sparsity, n_nearest_features)
+        ('fashion_mnist', 0.2, method, '', 0., None)
+        for method in ['iterative_imputer', 'iterative_imputer_rf']
+    ]
+    exclude += [
+        ('spam', 0.2, 'gain', 'ER', sparsity, None)
+        for sparsity in [0.6, 0.8, 0.9, 0.95]
+    ]
+    exclude += [
+        ('letter', 0.2, 'gain', 'ER', sparsity, None)
+        for sparsity in [0.6, 0.8]
+    ]
+    exclude += [
+        ('fashion_mnist', 0.2, 'gain', 'ER', sparsity, None)
+        for sparsity in [0.6, 0.8, 0.9, 0.95, 0.99]
     ]
 
+    # Get the runs
+    runs = get_runs(datasets_run, miss_rates_run, methods_run, inits_run, sparsities_run, n_nearest_features_run,
+                    n_runs_run, include, exclude)
+
+    # Initial report on the progress of the loop
+    total_runs = sum(runs.values())
+    print(f'Progress loop: 0% completed (0/{total_runs})\n')
+
     # Execute the runs
-    runs = get_runs(datasets_run, miss_rates_run, methods_run, inits_run, sparsities_run, n_runs_run, exclude=exclude)
     while len(runs) > 0:
+        i = 0
         for run in runs:
             for x in range(runs[run]):
                 # Inputs for the main function
@@ -131,6 +156,10 @@ if __name__ == '__main__':
                     default=run[4],
                     type=float)
                 parser.add_argument(
+                    '--n_nearest_features',
+                    default=run[5],
+                    type=float)
+                parser.add_argument(
                     "--save",
                     default=True,
                     type=bool)
@@ -144,6 +173,10 @@ if __name__ == '__main__':
                 # Calls main function
                 imputed_data, rmse = main(args, True)
 
+                # Report on the progress of the loop
+                if pd.notna(rmse): i += 1
+                print(f'Progress loop: {int(i / total_runs * 100)}% completed ({i}/{total_runs})\n')
+
         # Update runs
-        runs = get_runs(datasets_run, miss_rates_run, methods_run, inits_run, sparsities_run, n_runs_run,
-                        exclude=exclude)
+        runs = get_runs(datasets_run, miss_rates_run, methods_run, inits_run, sparsities_run, n_nearest_features_run,
+                        n_runs_run, include, exclude)

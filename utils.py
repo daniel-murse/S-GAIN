@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Utility functions for GAIN.
+"""Utility functions for GAIN.
 
 (1) normalization: MinMax Normalizer
 (2) renormalization: Recover the data from normalzied data
@@ -22,14 +22,16 @@
 (6) random_init: Random initialization
 (7) erdos_renyi_init: Erdos Renyi initialization
 (8) erdos_renyi_kernel_init: Erdos Renyi kernel initialization
-(9) snip_init: SNIP initialization
-(10) rsensitivity_init: RSensitivity initialization
-(11) binary_sampler: sample binary random variables
-(12) uniform_sampler: sample uniform random variables
-(13) sample_batch_index: sample random batch index
-(14) save_imputation_results: Save the imputation and initialized tensors to csv files
-(15) load_imputed_data: Load the RMSE scores of the imputed data
-'''
+(9) erdos_renyi_random_weights_init: Erdos Renyi with Random Weights initialization
+(10) erdos_renyi_kernel_random_weights_init: Erdos Renyi Kernel with Random Weights initialization
+(11) snip_init: SNIP initialization
+(12) rsensitivity_init: RSensitivity initialization
+(13) binary_sampler: sample binary random variables
+(14) uniform_sampler: sample uniform random variables
+(15) sample_batch_index: sample random batch index
+(16) save_imputation_results: Save the imputation and initialized tensors to csv files
+(17) load_imputed_data: Load the RMSE scores of the imputed data
+"""
 
 # Necessary packages
 from os import makedirs, listdir
@@ -44,7 +46,7 @@ tf.disable_v2_behavior()
 
 
 def normalization(data, parameters=None):
-    '''Normalize data in [0, 1] range.
+    """Normalize data in [0, 1] range.
 
     Args:
       - data: original data
@@ -52,7 +54,7 @@ def normalization(data, parameters=None):
     Returns:
       - norm_data: normalized data
       - norm_parameters: min_val, max_val for each feature for renormalization
-    '''
+    """
 
     # Parameters
     _, dim = data.shape
@@ -89,15 +91,15 @@ def normalization(data, parameters=None):
 
 
 def renormalization(norm_data, norm_parameters):
-    '''Renormalize data from [0, 1] range to the original range.
+    """Re-normalize data from [0, 1] range to the original range.
 
     Args:
       - norm_data: normalized data
       - norm_parameters: min_val, max_val for each feature for renormalization
 
     Returns:
-      - renorm_data: renormalized original data
-    '''
+      - renorm_data: re-normalized original data
+    """
 
     min_val = norm_parameters['min_val']
     max_val = norm_parameters['max_val']
@@ -113,7 +115,7 @@ def renormalization(norm_data, norm_parameters):
 
 
 def rounding(imputed_data, data_x):
-    '''Round imputed data for categorical variables.
+    """Round imputed data for categorical variables.
 
     Args:
       - imputed_data: imputed data
@@ -121,7 +123,7 @@ def rounding(imputed_data, data_x):
 
     Returns:
       - rounded_data: rounded imputed data
-    '''
+    """
 
     _, dim = data_x.shape
     rounded_data = imputed_data.copy()
@@ -136,7 +138,7 @@ def rounding(imputed_data, data_x):
 
 
 def rmse_loss(ori_data, imputed_data, data_m):
-    '''Compute RMSE loss between ori_data and imputed_data
+    """Compute RMSE loss between ori_data and imputed_data
 
     Args:
       - ori_data: original data without missing values
@@ -145,7 +147,7 @@ def rmse_loss(ori_data, imputed_data, data_m):
 
     Returns:
       - rmse: Root Mean Squared Error
-    '''
+    """
 
     ori_data, norm_parameters = normalization(ori_data)
     imputed_data, _ = normalization(imputed_data, norm_parameters)
@@ -160,7 +162,7 @@ def rmse_loss(ori_data, imputed_data, data_m):
 
 
 def xavier_init(size, seed=None):
-    '''Xavier initialization.
+    """Xavier initialization.
 
     Args:
       - size: vector size
@@ -168,7 +170,7 @@ def xavier_init(size, seed=None):
 
     Returns:
       - initialized random vector.
-    '''
+    """
 
     # Fix seed for run-to-run consistency
     if seed is not None: tf.random.set_random_seed(seed)
@@ -179,7 +181,7 @@ def xavier_init(size, seed=None):
 
 
 def random_init(tensors, sparsity, fix_seed=False):
-    '''Random initialization.
+    """Random initialization.
 
     Args:
         - tensors: the tensors to apply sparsity on
@@ -188,7 +190,7 @@ def random_init(tensors, sparsity, fix_seed=False):
 
     Returns:
         - initialized randomly sparsed tensors.
-    '''
+    """
 
     for i in range(len(tensors)):
         # Fix seed for run-to-run consistency
@@ -201,7 +203,7 @@ def random_init(tensors, sparsity, fix_seed=False):
 
 
 def erdos_renyi_init(tensors, sparsity, erk_power_scale=1.0, fix_seed=False):
-    '''Erdos Renyi initialization.
+    """Erdos Renyi initialization.
 
     Args:
         - tensors: the tensors to apply sparsity on
@@ -211,7 +213,7 @@ def erdos_renyi_init(tensors, sparsity, erk_power_scale=1.0, fix_seed=False):
 
     Returns:
         - initialized Erdos Renyi sparsed tensors.
-    '''
+    """
 
     total_params = 0
     for name, weight in tensors.items():
@@ -269,17 +271,17 @@ def erdos_renyi_init(tensors, sparsity, erk_power_scale=1.0, fix_seed=False):
 
 
 def erdos_renyi_kernel_init(tensors, sparsity, erk_power_scale=1.0, fix_seed=False):
-    '''Erdos Renyi Kernel initialization.
+    """Erdos Renyi Kernel initialization.
 
-        Args:
-            - tensors: the tensors to apply sparsity on
-            - sparsity: the level of sparsity [0,1)
-            - erk_power_scale: ?
-            - fix_seed: fix random seed
+    Args:
+        - tensors: the tensors to apply sparsity on
+        - sparsity: the level of sparsity [0,1)
+        - erk_power_scale: ?
+        - fix_seed: fix random seed
 
-        Returns:
-            - initialized Erdos Renyi Kernel sparsed tensors.
-    '''
+    Returns:
+        - initialized Erdos Renyi Kernel sparsed tensors.
+    """
 
     tensors = erdos_renyi_init(tensors, sparsity, erk_power_scale, fix_seed)
 
@@ -302,11 +304,56 @@ def erdos_renyi_kernel_init(tensors, sparsity, erk_power_scale=1.0, fix_seed=Fal
     return tensors
 
 
-def erdos_renyi_random_weights(tensors, sparsity, fix_seed=False):
-    'Maybe this works? If success: happy, if failure: at least I tried.'
-    dense_random_weights = random_init(tensors, sparsity, fix_seed)
-    erdos_renyi_sparsity_mask = erdos_renyi_init(tensors, sparsity, fix_seed)
-    return dense_random_weights * erdos_renyi_sparsity_mask
+def _apply_random_weights(tensors, fix_seed=False):
+    i = 0
+    for key, mask in tensors.items():
+        # Convert Dimension to int to avoid problems
+        size = [int(x) for x in mask.shape]
+
+        if fix_seed:
+            # Fix seed for run-to-run consistency
+            tensor = xavier_init(size, i)
+        else:
+            tensor = xavier_init(size)
+
+        tensors[key] = tensor * mask
+        i += 1
+
+    return tensors
+
+
+def erdos_renyi_random_weights_init(tensors, sparsity, erk_power_scale=1.0, fix_seed=False):
+    """Erdos Renyi with Random Weights initialization.
+
+    Args:
+        - tensors: the tensors to apply sparsity on
+        - sparsity: the level of sparsity [0,1)
+        - erk_power_scale: ?
+        - fix_seed: fix random seed
+
+    Returns:
+        - initialized Erdos Renyi sparsed tensors.
+    """
+
+    tensors = erdos_renyi_init(tensors, sparsity, erk_power_scale, fix_seed)
+    return _apply_random_weights(tensors, fix_seed)
+
+
+def erdos_renyi_kernel_random_weights_init(tensors, sparsity, erk_power_scale=1.0, fix_seed=False):
+    """Erdos Renyi Kernel with Random Weights initialization.
+
+    Args:
+        - tensors: the tensors to apply sparsity on
+        - sparsity: the level of sparsity [0,1)
+        - erk_power_scale: ?
+        - fix_seed: fix random seed
+
+    Returns:
+        - initialized Erdos Renyi Kernel sparsed tensors.
+    """
+
+    tensors = erdos_renyi_kernel_init(tensors, sparsity, erk_power_scale, fix_seed)
+    return _apply_random_weights(tensors, fix_seed)
 
 
 def snip_init(tensors, sparsity, fix_seed=False):
@@ -318,7 +365,7 @@ def rsensitivity_init(tensors, sparsity, fix_seed=False):
 
 
 def binary_sampler(p, rows, cols, seed=None):
-    '''Sample binary random variables.
+    """Sample binary random variables.
 
     Args:
       - p: probability of 1
@@ -328,7 +375,7 @@ def binary_sampler(p, rows, cols, seed=None):
 
     Returns:
       - binary_random_matrix: generated binary random matrix.
-    '''
+    """
 
     # Fix seed for run-to-run consistency
     if seed: np.random.seed(seed)
@@ -339,7 +386,7 @@ def binary_sampler(p, rows, cols, seed=None):
 
 
 def uniform_sampler(low, high, rows, cols, seed=None):
-    '''Sample uniform random variables.
+    """Sample uniform random variables.
 
     Args:
       - low: low limit
@@ -350,7 +397,7 @@ def uniform_sampler(low, high, rows, cols, seed=None):
 
     Returns:
       - uniform_random_matrix: generated uniform random matrix.
-    '''
+    """
 
     # Fix seed for run-to-run consistency
     if seed: np.random.seed(seed)
@@ -359,7 +406,7 @@ def uniform_sampler(low, high, rows, cols, seed=None):
 
 
 def sample_batch_index(total, batch_size, seed=None):
-    '''Sample index of the mini-batch.
+    """Sample index of the mini-batch.
 
     Args:
       - total: total number of samples
@@ -368,7 +415,7 @@ def sample_batch_index(total, batch_size, seed=None):
 
     Returns:
       - batch_idx: batch index
-    '''
+    """
 
     # Fix seed for run-to-run consistency
     if seed: np.random.seed(seed)
@@ -378,27 +425,32 @@ def sample_batch_index(total, batch_size, seed=None):
     return batch_idx
 
 
-def save_imputation_results(data_save, data_name, miss_rate, method, init, sparsity, rmse, tensors, folder):
-    '''Saves the imputed data to a csv file
+def save_imputation_results(data_save, data_name, miss_rate, method, init, sparsity, n_nearest_features, rmse, tensors,
+                            folder):
+    """Saves the imputed data to a csv file
 
     Args:
         - data_save: the data to save
         - data_name: the name of the imputed dataset
         - miss_rate: the percentage of missing datapoints
         - method: the method used (GAIN, IterativeImputer, IterativeImputerRF)
-        - init: the initialization function used
-        - sparsity: the level of model sparsity (random or weight percentage, depending on the gain file used)
+        - init: the initialization function used (GAIN only)
+        - sparsity: the level of model sparsity (GAIN only)
+        - n_nearest_features: the number of nearest features (Iterative Imputers only)
         - rmse: the RMSE score
         - folder: the folder to save the results in
         - tensors: the initialized tensors for the generator
-    '''
+    """
 
     # Set the folder paths and filename
     folder_inits = f'{folder}_initializations'
     folder_metrics = f'{folder}_metrics'
     path_metrics = f'{folder_metrics}/successes_and_failures.csv'
 
-    filename = f'{data_name}_missrate_{miss_rate}_{method}_{init}_sparsity_{sparsity}_rmse_{rmse}'
+    if method == 'GAIN':
+        filename = f'{data_name}_missrate_{miss_rate}_{method}_{init}_sparsity_{sparsity}_rmse_{rmse}'
+    else:  # Iterative Imputers
+        filename = f'{data_name}_missrate_{miss_rate}_{method}_n_nearest_features_{n_nearest_features}_rmse_{rmse}'
 
     # Avoid overwriting if rmse is the same
     if isfile(f'{folder}/{filename}.csv'):
@@ -420,12 +472,12 @@ def save_imputation_results(data_save, data_name, miss_rate, method, init, spars
         # Save the initializations
         for i in range(len(tensors)):
             tensor = tensors[i]
-            path_inits = f'{folder_inits}/{filename}_G_W{i + 1}_{init}.csv'
+            path_inits = f'{folder_inits}/{filename}_G_W{i + 1}.csv'
             tensor = pd.DataFrame(tensor).mask(tensor == 0., '0').mask(tensor == 1., '1')
             tensor.to_csv(path_inits, index=False, header=False)
 
     # Save the metrics
-    header = ['dataset', 'miss_rate', 'method', 'init', 'sparsity', 'successes', 'failures']
+    header = ['dataset', 'miss_rate', 'method', 'init', 'sparsity', 'n_nearest_features', 'successes', 'failures']
     if isfile(path_metrics):
         metrics = pd.read_csv(path_metrics)
         if not metrics.loc[
@@ -434,26 +486,32 @@ def save_imputation_results(data_save, data_name, miss_rate, method, init, spars
             & (metrics['method'] == method)
             & (metrics['init'] == init if init else metrics['init'].isnull())
             & (metrics['sparsity'] == sparsity)
+            & (metrics['n_nearest_features'] == n_nearest_features if n_nearest_features
+               else metrics['n_nearest_features'].isnull())
         ].empty:
             metrics.loc[
                 (metrics['dataset'] == data_name)
                 & (metrics['miss_rate'] == miss_rate)
                 & (metrics['method'] == method)
                 & (metrics['init'] == init if init else metrics['init'].isnull())
-                & (metrics['sparsity'] == sparsity),
+                & (metrics['sparsity'] == sparsity)
+                & (metrics['n_nearest_features'] == n_nearest_features if n_nearest_features
+                   else metrics['n_nearest_features'].isnull()),
                 ['successes', 'failures']
             ] += [1, 0] if rmse != 'nan' else [0, 1]
         else:
             if rmse != 'nan':
-                row = pd.DataFrame([[data_name, miss_rate, method, init, sparsity, 1, 0]], columns=header)
+                row = pd.DataFrame([[data_name, miss_rate, method, init, sparsity, n_nearest_features, 1, 0]],
+                                   columns=header)
             else:
-                row = pd.DataFrame([[data_name, miss_rate, method, init, sparsity, 0, 1]], columns=header)
+                row = pd.DataFrame([[data_name, miss_rate, method, init, sparsity, n_nearest_features, 0, 1]],
+                                   columns=header)
             metrics = pd.concat([metrics, row])
     else:
         if rmse != 'nan':
-            row = [[data_name, miss_rate, method, init, sparsity, 1, 0]]
+            row = [[data_name, miss_rate, method, init, sparsity, n_nearest_features, 1, 0]]
         else:
-            row = [[data_name, miss_rate, method, init, sparsity, 0, 1]]
+            row = [[data_name, miss_rate, method, init, sparsity, n_nearest_features, 0, 1]]
         metrics = pd.DataFrame(row, columns=header)
 
     # Save the success and failure count
@@ -461,14 +519,14 @@ def save_imputation_results(data_save, data_name, miss_rate, method, init, spars
 
 
 def load_imputed_data(folder='imputed_data'):
-    '''Load the RMSE scores of the imputed data
+    """Load the RMSE scores of the imputed data
 
     Args:
         - folder: the folder to find the imputed data in
 
     Returns:
-        - a table with [data_name, miss_rate, method, initialization, sparsity, RMSE...]
-    '''
+        - a table with [data_name, miss_rate, method, initialization, sparsity, n_nearest_features, RMSE...]
+    """
 
     concat_results = []
     if isdir(folder):
@@ -483,13 +541,20 @@ def load_imputed_data(folder='imputed_data'):
         for f in files:
             split = f.split('_')
             data_name = split[0]
-            miss_rate = split[2]
+            miss_rate = float(split[2])
             method = split[3]
-            init = split[4]
-            sparsity = split[6]
-            rmse = '0.' + split[8].split('.')[1]
+            if method == 'GAIN':
+                init = split[4]
+                sparsity = float(split[6])
+                n_nearest_features = None
+                rmse = float('0.' + split[8].split('.')[1])
+            else:  # Iterative Imputers
+                init = ''
+                sparsity = 0.
+                n_nearest_features = int(split[7]) if split[7] != 'None' else None
+                rmse = float('0.' + split[9].split('.')[1])
 
-            results.append([data_name, miss_rate, method, init, sparsity, rmse])
+            results.append([data_name, miss_rate, method, init, sparsity, n_nearest_features, rmse])
 
         # Concatenate the results
         res_ = None
@@ -499,8 +564,8 @@ def load_imputed_data(folder='imputed_data'):
                 res_ = result
             else:
                 # If the dataset, miss_rate, method, initialization and sparsity are the same, concat the RMSEs
-                if res_[:5] == result[:5]:
-                    res_.append(result[5])
+                if res_[:6] == result[:6]:
+                    res_.append(result[6])
                 else:
                     concat_results.append(res_)
                     res_ = result

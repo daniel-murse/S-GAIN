@@ -25,7 +25,8 @@ import numpy as np
 from tqdm import tqdm
 
 from utils import normalization, renormalization, rounding
-from utils import xavier_init, random_init, erdos_renyi_init, erdos_renyi_kernel_init, snip_init, rsensitivity_init
+from utils import xavier_init, random_init, erdos_renyi_init, erdos_renyi_random_weights_init
+from utils import erdos_renyi_kernel_init, snip_init, rsensitivity_init
 from utils import binary_sampler, uniform_sampler, sample_batch_index
 
 
@@ -99,26 +100,36 @@ def gain(data_x, gain_parameters):
             print('initialize randomly')
             G_W1, G_W2, G_W3 = random_init([G_W1, G_W2, G_W3], sparsity)
 
-    elif init in ('ER', 'ERK'):
+    elif init in ('ER', 'ERK', 'ERRW', 'ERKRW'):
         G_Ws = {
             'G_W1': np.zeros([dim * 2, h_dim]),
             'G_W2': np.zeros([h_dim, h_dim]),
             'G_W3': np.zeros([h_dim, dim])
         }
+
         if init == 'ER':
             print('initialize by Erdos Renyi')
             G_W1, G_W2, G_W3 = erdos_renyi_init(G_Ws, sparsity).values()
-        else:
-            assert 'ERK initialization not implemented'
+
+        elif init == 'ERK':
+            return
+
+        elif init == 'ERRW':
+            print('initialize by Erdos Renyi with random weights')
+            G_W1, G_W2, G_W3 = erdos_renyi_random_weights_init(G_Ws, sparsity).values()
+
+        else:  # ERKRW
+            return
 
     elif init == 'SNIP':
-        assert 'SNIP initialization not implemented'
+        return
 
     elif init == 'RSensitivity':
-        assert 'RSensitivity initialization not implemented'
+        return
 
-    else:
-        assert f'Unknown initialization {init}'
+    else:  # This should not happen.
+        print(f'Invalid initialization "{init}". Exiting the program.')
+        return
 
     # Store the initializations for outputting to file
     with tf.Session():

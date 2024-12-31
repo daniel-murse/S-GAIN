@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Main function for UCI letter and spam datasets.'''
+"""Main function for UCI letter and spam datasets."""
 
 # Necessary packages
 from __future__ import absolute_import, division, print_function
@@ -28,28 +28,24 @@ from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor
 
 
-def iterative_imputer(miss_data_x, seed=None):
+def iterative_imputer(miss_data_x, n_nearest_features=None, seed=None):
     """Perform missing data imputation using Iterative Imputer."""
-    if seed is not None:
-        imputer = IterativeImputer(max_iter=10, random_state=seed)
-    else:
-        imputer = IterativeImputer(max_iter=10)
-
+    imputer = IterativeImputer(max_iter=10, n_nearest_features=n_nearest_features, random_state=seed)
     imputed_data_x = imputer.fit_transform(miss_data_x)
     return imputed_data_x
 
 
-def iterative_imputer_rf(miss_data_x, seed=None):
+def iterative_imputer_rf(miss_data_x, n_nearest_features=None, seed=None):
     """Perform missing data imputation using Iterative Imputer with RandomForest."""
-    if seed is not None:
-        rf_regressor = RandomForestRegressor(n_estimators=100, random_state=seed)
-        imputer = IterativeImputer(estimator=rf_regressor, max_iter=10, random_state=seed)
-    else:
-        rf_regressor = RandomForestRegressor(n_estimators=100)
-        imputer = IterativeImputer(estimator=rf_regressor, max_iter=10)
-
+    rf_regressor = RandomForestRegressor(n_estimators=100, random_state=seed)
+    imputer = IterativeImputer(estimator=rf_regressor, max_iter=10, n_nearest_features=n_nearest_features,
+                               random_state=seed)
     imputed_data_x = imputer.fit_transform(miss_data_x)
     return imputed_data_x
+
+
+def expectation_maximization(miss_data_x, seed=None):
+    pass
 
 
 def main(args, loop=False):
@@ -65,6 +61,7 @@ def main(args, loop=False):
       - method: which method to use (gain, iterative_imputer, iterative_imputer_rf)
       - sparsity: probability of sparsity in the generator (GAIN only)
       - init: which initialization to use (xavier, random, erdos_renyi, snip, rsensitivity) (GAIN only)
+      - n_nearest_features: number of nearest features (Iterative Imputers only)
       - save: save the output to csv file
       - folder: the folder to save the csv files to
 
@@ -73,31 +70,43 @@ def main(args, loop=False):
       - rmse: Root Mean Squared Error
     '''
 
-    data_name = args.data_name
+    data_name = args.data_name.lower()
     miss_rate = args.miss_rate
+    n_nearest_features = args.n_nearest_features
     save = args.save
     folder = args.folder
 
-    if data_name == 'fashion_mnist':
-        data_name = 'FashionMNIST'
-    elif data_name == 'mnist':
-        data_name = 'MNIST'
-
+    # Standardize method, init and sparsity for printing
     if args.method.lower() == 'gain':
         method = 'GAIN'
-        if args.init.lower() == 'random':
+        if args.init.lower() in ('xavier', 'dense', 'full'):
+            args.sparsity = 0.
+            args.init = 'dense'
+        elif args.init.lower() == 'random':
             args.init = 'random'
         elif args.init.lower() in ('erdos_renyi', 'er'):
             args.init = 'ER'
         elif args.init.lower() in ('erdos_renyi_kernel', 'erk'):
             args.init = 'ERK'
+            print('ERK initialization not implemented. Exiting the program.')
+            return
+        elif args.init.lower() in ('erdos_renyi_random_weights', 'errw'):
+            args.init = 'ERRW'
+        elif args.init.lower() in ('erdos_renyi_kernel_random_weights', 'erkrw'):
+            args.init = 'ERKRW'
+            print('ERKRW initialization not implemented. Exiting the program.')
+            return
         elif args.init.lower() == 'snip':
             args.init = 'SNIP'
+            print('SNIP initialization not implemented. Exiting the program.')
+            return
         elif args.init.lower() == 'rsensitivity':
             args.init = 'RSensitivity'
-        else:
-            args.sparsity = 0.
-            args.init = 'dense'
+            print('RSensitivity initialization not implemented. Exiting the program.')
+            return
+        else:  # This should not happen.
+            print(f'Invalid initialization "{args.init}". Exiting the program.')
+            return
     elif args.method.lower() == 'iterative_imputer':
         method = 'IterativeImputer'
         args.sparsity = 0.
@@ -106,15 +115,20 @@ def main(args, loop=False):
         method = 'IterativeImputerRF'
         args.sparsity = 0.
         args.init = ''
-    else:
-        print("Invalid method selection. Exiting the program.")
+    else:  # This should not happen.
+        print(f'Invalid method "{args.method}". Exiting the program.')
         return
 
     # Print the command if run in a loop
     if loop: print(
-        f'python main.py --data_name {data_name} --miss_rate {miss_rate} --batch_size {args.batch_size}'
-        f' --hint_rate {args.hint_rate} --alpha {args.alpha} --iterations {args.iterations} --method {method}'
-        f' --sparsity {args.sparsity} --init {args.init} --save {save} --folder {folder}'
+        f'python main.py --data_name {data_name} --miss_rate {miss_rate}'
+        f'{f' --batch_size {args.batch_size} --hint_rate {args.hint_rate} --alpha {args.alpha}'
+           f'--iterations {args.iterations}' if 'IterativeImputer' not in method else ''}'
+        f' --method {method}'
+        f'{f' --sparsity {args.sparsity}' if args.sparsity > 0 else ''}'
+        f'{f' --init {args.init}' if args.init else ''}'
+        f'{f' --n_nearest_features {n_nearest_features}' if n_nearest_features else ''}'
+        f'{f' --save --folder {folder}' if save else ''}\n'
     )
 
     # Load data and introduce missingness
@@ -132,21 +146,27 @@ def main(args, loop=False):
         imputed_data_x, G_tensors = gain(miss_data_x, gain_parameters)
     elif method == 'IterativeImputer':
         print('Impute missing data using Iterative Imputer')
-        imputed_data_x = iterative_imputer(miss_data_x)
+        imputed_data_x = iterative_imputer(miss_data_x, n_nearest_features)
         G_tensors = []  # No tensors to save
     else:  # IterativeImputerRF
         print('Impute using Iterative Imputer with RandomForest Regressor')
-        imputed_data_x = iterative_imputer_rf(miss_data_x)
+        imputed_data_x = iterative_imputer_rf(miss_data_x, n_nearest_features)
         G_tensors = []  # No tensors to save
 
     # Report the RMSE performance
     rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
     rsme_performance = str(np.round(rmse, 4))
-    print(f'\n{method} {args.init} RMSE Performance: ' + rsme_performance)
+    print(f'{method} {args.init} RMSE Performance: {rsme_performance}')
+
+    # Standardize data_name for file naming
+    if data_name == 'fashion_mnist':
+        data_name = 'FashionMNIST'
+    elif data_name == 'mnist':
+        data_name = 'MNIST'
 
     # Save the imputed data
     if save: save_imputation_results(imputed_data_x, data_name, miss_rate, method, args.init, args.sparsity,
-                                     rsme_performance, G_tensors, folder)
+                                     n_nearest_features, rsme_performance, G_tensors, folder)
 
     return imputed_data_x, rmse
 
@@ -156,7 +176,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--data_name',
-        choices=['letter', 'spam', 'mnist', 'fashion_mnist'],
+        choices=['letter', 'spam', 'mnist', 'fashion_mnist', 'health'],
         default='mnist',
         type=str)
     parser.add_argument(
@@ -192,7 +212,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--init',
         help='initialization method (GAIN only)',
-        choices=['xavier', 'dense', 'full', 'random', 'erdos_renyi', 'er', 'snip', 'rsensitivity'],
+        choices=['xavier', 'dense', 'full', 'random', 'erdos_renyi', 'er', 'erdos_renyi_random_weights', 'errw', 'snip',
+                 'rsensitivity'],
         default='full',
         type=str)
     parser.add_argument(
@@ -201,9 +222,14 @@ if __name__ == '__main__':
         default=0,
         type=float)
     parser.add_argument(
+        '--n_nearest_features',
+        help='number of nearest features (Iterative Imputers only)',
+        default=None,
+        type=float)
+    parser.add_argument(
         '--save',
         help='save the output to csv file',
-        action="store_true",
+        action='store_true',
         default=False,
         type=bool)
     parser.add_argument(
