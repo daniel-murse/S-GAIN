@@ -91,12 +91,12 @@ def gain(data_x, gain_parameters):
 
     # Generator variables
     # Data + Mask as inputs (Random noise is in missing components)
-    if init in ('dense', 'random'):
+    if init in ('Dense', 'Random'):
         G_W1 = xavier_init([dim * 2, h_dim])
         G_W2 = xavier_init([h_dim, h_dim])
         G_W3 = xavier_init([h_dim, dim])
 
-        if init == 'random':
+        if init == 'Random':
             print('initialize randomly')
             G_W1, G_W2, G_W3 = random_init([G_W1, G_W2, G_W3], sparsity)
 

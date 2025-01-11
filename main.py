@@ -26,6 +26,7 @@ from gain import gain
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor
+from hyperimpute.plugins.imputers import Imputers
 
 
 def iterative_imputer(miss_data_x, n_nearest_features=None, seed=None):
@@ -44,12 +45,15 @@ def iterative_imputer_rf(miss_data_x, n_nearest_features=None, seed=None):
     return imputed_data_x
 
 
-def expectation_maximization(miss_data_x, seed=None):
-    pass
+def expectation_maximization(miss_data_x):
+    """Perform missing data imputation using Expectation Maximization."""
+    imputer = Imputers().get('EM')
+    imputed_data_x = imputer.fit_transform(miss_data_x)
+    return imputed_data_x
 
 
 def main(args, loop=False):
-    '''Main function for UCI letter and spam datasets.
+    """Main function for UCI letter and spam datasets.
 
     Args:
       - data_name: letter or spam
@@ -58,7 +62,7 @@ def main(args, loop=False):
       - hint_rate: hint rate
       - alpha: hyperparameter
       - iterations: iterations
-      - method: which method to use (gain, iterative_imputer, iterative_imputer_rf)
+      - method: which method to use (gain, iterative_imputer, iterative_imputer_rf, expectation_maximization)
       - sparsity: probability of sparsity in the generator (GAIN only)
       - init: which initialization to use (xavier, random, erdos_renyi, snip, rsensitivity) (GAIN only)
       - n_nearest_features: number of nearest features (Iterative Imputers only)
@@ -68,7 +72,7 @@ def main(args, loop=False):
     Returns:
       - imputed_data_x: imputed data
       - rmse: Root Mean Squared Error
-    '''
+    """
 
     data_name = args.data_name.lower()
     miss_rate = args.miss_rate
@@ -81,9 +85,9 @@ def main(args, loop=False):
         method = 'GAIN'
         if args.init.lower() in ('xavier', 'dense', 'full'):
             args.sparsity = 0.
-            args.init = 'dense'
+            args.init = 'Dense'
         elif args.init.lower() == 'random':
-            args.init = 'random'
+            args.init = 'Random'
         elif args.init.lower() in ('erdos_renyi', 'er'):
             args.init = 'ER'
         elif args.init.lower() in ('erdos_renyi_kernel', 'erk'):
@@ -113,6 +117,10 @@ def main(args, loop=False):
         args.init = ''
     elif args.method.lower() == 'iterative_imputer_rf':
         method = 'IterativeImputerRF'
+        args.sparsity = 0.
+        args.init = ''
+    elif args.method.lower() in ('expectation_maximization', 'em'):
+        method = 'ExpectationMaximization'
         args.sparsity = 0.
         args.init = ''
     else:  # This should not happen.
@@ -148,9 +156,13 @@ def main(args, loop=False):
         print('Impute missing data using Iterative Imputer')
         imputed_data_x = iterative_imputer(miss_data_x, n_nearest_features)
         G_tensors = []  # No tensors to save
-    else:  # IterativeImputerRF
+    elif method == 'IterativeImputerRF':
         print('Impute using Iterative Imputer with RandomForest Regressor')
         imputed_data_x = iterative_imputer_rf(miss_data_x, n_nearest_features)
+        G_tensors = []  # No tensors to save
+    else:  # Expectation Maximization
+        print('Impute using Iterative Imputer with Expectation Maximization')
+        imputed_data_x = expectation_maximization(miss_data_x)
         G_tensors = []  # No tensors to save
 
     # Report the RMSE performance
@@ -163,6 +175,8 @@ def main(args, loop=False):
         data_name = 'FashionMNIST'
     elif data_name == 'mnist':
         data_name = 'MNIST'
+    elif data_name == 'cifar10':
+        data_name = 'CIFAR10'
 
     # Save the imputed data
     if save: save_imputation_results(imputed_data_x, data_name, miss_rate, method, args.init, args.sparsity,
@@ -206,7 +220,7 @@ if __name__ == '__main__':
         type=int)
     parser.add_argument(
         '--method',
-        choices=['gain', 'iterative_imputer', 'iterative_imputer_rf'],
+        choices=['gain', 'iterative_imputer', 'iterative_imputer_rf', 'expectation_maximization', 'em'],
         default='gain',
         type=str)
     parser.add_argument(

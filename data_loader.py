@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''Data loader for UCI letter, spam and MNIST datasets.'''
+"""Data loader for UCI letter, spam and MNIST datasets."""
 
 # Necessary packages
 import numpy as np
 from utils import binary_sampler
 from keras.datasets import mnist
 from keras.datasets import fashion_mnist
-#https://jundongl.github.io/scikit-feature/datasets.html 
+from keras.datasets import cifar10
+#https://jundongl.github.io/scikit-feature/datasets.html
 def data_loader(data_name, miss_rate):
-    '''Loads datasets and introduce missingness.
+    """Loads datasets and introduce missingness.
 
     Args:
       - data_name: letter, spam or mnist
@@ -31,7 +32,7 @@ def data_loader(data_name, miss_rate):
       data_x: original data
       miss_data_x: data with missing values
       data_m: indicator matrix for missing components
-    '''
+    """
 
     # Load data
     if data_name in ['letter', 'spam', 'health']:
@@ -43,7 +44,12 @@ def data_loader(data_name, miss_rate):
     elif data_name == 'fashion_mnist':
         (data_x, _), _ = fashion_mnist.load_data()
         data_x = np.reshape(np.asarray(data_x), [60000, 28 * 28]).astype(float)
-
+    elif data_name == 'cifar10':
+        (data_x, _), _ = cifar10.load_data()
+        data_x = np.reshape(np.asarray(data_x), [50000, 32 * 32 * 3]).astype(float)
+    else:  # This should not happen
+        print(f'Invalid dataset "{data_name}". Exiting the program.')
+        return
 
     # Parameters
     no, dim = data_x.shape

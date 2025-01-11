@@ -1,9 +1,22 @@
+# coding=utf-8
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Loop for the main function."""
 
 from __future__ import absolute_import, division, print_function
 
 import argparse
-
 import pandas as pd
 
 from main import main
@@ -15,11 +28,17 @@ def get_runs(datasets, miss_rates, methods, inits, sparsities, n_nearest_feature
     for method in methods:
         if method == 'gain':
             runs.update({
-                (dataset, miss_rate, 'gain', init, sparsity if init not in ('xavier', 'dense', 'full') else 0., None): n_runs
+                (dataset, miss_rate, 'gain', init, sparsity if init != 'Dense' else 0., None): n_runs
                 for dataset in datasets
                 for init in inits
                 for miss_rate in miss_rates
                 for sparsity in sparsities
+            })
+        elif method in ('expectation_maximization', 'em'):
+            runs.update({
+                (dataset, miss_rate, 'em', '', 0., None): n_runs
+                for dataset in datasets
+                for miss_rate in miss_rates
             })
         else:  # Iterative Imputers
             runs.update({
@@ -36,14 +55,15 @@ def get_runs(datasets, miss_rates, methods, inits, sparsities, n_nearest_feature
     # Remove completed runs from runs
     imputed_data = load_imputed_data()
     for data in imputed_data:
-        data_name, miss_rate, method, init, sparsity = data[:5]
-        nnf = data[5]
+        data_name, miss_rate, method, init, sparsity, nnf = data[:6]
 
         # Standardize data_name
         if data_name == 'FashionMNIST':
             data_name = 'fashion_mnist'
         elif data_name == 'MNIST':
             data_name = 'mnist'
+        elif data_name == 'CIFAR10':
+            data_name = 'cifar10'
 
         # Format the keys
         if method == 'IterativeImputer':
@@ -55,7 +75,7 @@ def get_runs(datasets, miss_rates, methods, inits, sparsities, n_nearest_feature
 
         # Remove runs
         if key in runs:
-            runs_left = n_runs - (len(data[6:]))
+            runs_left = n_runs - len(data[6:])
             if runs_left <= 0:
                 runs.pop(key)
             else:
@@ -70,10 +90,10 @@ def get_runs(datasets, miss_rates, methods, inits, sparsities, n_nearest_feature
 
 if __name__ == '__main__':
     # Set the parameters
-    datasets_run = ['health']  # ['spam', 'letter', 'fashion_mnist', 'health']
+    datasets_run = ['spam', 'letter', 'health', 'fashion_mnist']
     miss_rates_run = [0.2]
     methods_run = ['gain', 'iterative_imputer', 'iterative_imputer_rf']
-    inits_run = ['dense', 'random', 'ER', 'ERRW']  # GAIN only
+    inits_run = ['Dense', 'Random', 'ER', 'ERRW']  # GAIN only
     sparsities_run = [0.6, 0.8, 0.9, 0.95, 0.99]  # Sparse GAIN only
     n_nearest_features_run = [None]  # Iterative Imputers only
     n_runs_run = 10
@@ -81,8 +101,7 @@ if __name__ == '__main__':
     # Inclusions
     include = [
         # (dataset, miss_rate, method, init, sparsity, n_nearest_features)
-        ('fashion_mnist', 0.2, method, '', 0., 100)
-        for method in ['iterative_imputer', 'iterative_imputer_rf']
+        ('fashion_mnist', 0.2, 'iterative_imputer', '', 0., 100)
     ]
 
     # Exclusions

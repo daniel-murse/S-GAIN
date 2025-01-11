@@ -449,6 +449,8 @@ def save_imputation_results(data_save, data_name, miss_rate, method, init, spars
 
     if method == 'GAIN':
         filename = f'{data_name}_missrate_{miss_rate}_{method}_{init}_sparsity_{sparsity}_rmse_{rmse}'
+    elif method == 'ExpectationMaximization':
+        filename = f'{data_name}_missrate_{miss_rate}_{method}_rmse_{rmse}'
     else:  # Iterative Imputers
         filename = f'{data_name}_missrate_{miss_rate}_{method}_n_nearest_features_{n_nearest_features}_rmse_{rmse}'
 
@@ -548,6 +550,11 @@ def load_imputed_data(folder='imputed_data'):
                 sparsity = float(split[6])
                 n_nearest_features = None
                 rmse = float('0.' + split[8].split('.')[1])
+            elif method == 'ExpectationMaximization':
+                init = ''
+                sparsity = 0.
+                n_nearest_features = None
+                rmse = float('0.' + split[5].split('.')[1])
             else:  # Iterative Imputers
                 init = ''
                 sparsity = 0.

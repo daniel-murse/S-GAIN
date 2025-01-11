@@ -19,20 +19,19 @@ This is done with intent to increase performance: i.e. decrease the RMSE, decrea
 - We added a loop to run main.py for different settings until the desired number of results for each setting is achieved.
 - We added the functionality to save the imputations, the initialized weights of the generator and the success and failure counts.
 - We added a jupyter notebook to compile the results and return the RMSE mean and standard deviation, the success and failure rate and total FLOPs, as well as plotting these in a graph.
-- We added the Fashion MNIST and Maternal Health Risk dataset. For the health dataset, the labels have been removed, just as is the case for the original spam and letter datasets.
+- We added the Fashion MNIST, CIFAR10 and Maternal Health Risk dataset. For the health dataset, the labels have been removed, just as is the case for the original spam and letter datasets.
 - We added a command for n_nearest_features for the Iterative Imputers as they would run out of memory on large datasets with the default setting.
 
 ### Possible improvements
 
 - Change loop_main.py to a shell script to ensure tensorflow restarts every run. We have a problem with tensorflow slowing down each subsequent run and eventually running out of memory.
 - Add more initializations: i.e. Erdos Renyi Kernel, SNIP and RSensitivity.
-- Add more datasets: i.e. CIFAR10.
 - Use Dynamic Sparse Training instead of Static Sparse Training.
-- Implement the use of sparse tensors.
+- Upgrade to Tensorflow v2 and implement the use of sparse tensors.
 
 ### Command inputs
 
-- data_name: letter, spam, mnist, fashion_mnist or health
+- data_name: letter, spam, health, mnist, fashion_mnist or cifar10
 - miss_rate: probability of missing components
 - batch_size: batch size
 - hint_rate: hint rate
