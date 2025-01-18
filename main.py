@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#We used original GAIN code to improve our works.
+'''GAIN function.
+Date: 2020/02/28
+Reference: J. Yoon, J. Jordon, M. van der Schaar, "GAIN: Missing Data 
+           Imputation using Generative Adversarial Nets," ICML, 2018.
+Paper Link: http://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
+
+'''
+
 """Main function for UCI letter and spam datasets."""
 
 # Necessary packages
