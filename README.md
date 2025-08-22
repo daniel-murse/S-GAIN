@@ -1,6 +1,6 @@
-# Codebase for "Sparse Generative Adversarial Imputation Networks (SparseGAIN)"
+# Codebase for "Sparse Generative Adversarial Imputation Networks (Sparse GAIN)"
 
-Authors: Isil Baysal Erez, Brian van Oers
+Authors: Brian van Oers, Isil Baysal Erez
 
 Paper: *reference to paper here*
 

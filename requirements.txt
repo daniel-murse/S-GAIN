@@ -3,3 +3,5 @@ tensorflow>=1.15.0
 keras>=2.3.1
 tqdm>=4.36.1
 argparse>=1.1
+pandas~=2.3.0
+scipy~=1.16.0

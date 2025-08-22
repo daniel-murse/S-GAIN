@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, print_function
+
 # coding=utf-8
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#We used original GAIN code to improve our works.
+# We used original GAIN code to improve our works.
 '''GAIN function.
 Date: 2020/02/28
 Reference: J. Yoon, J. Jordon, M. van der Schaar, "GAIN: Missing Data 
@@ -24,8 +26,6 @@ Paper Link: http://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 """Main function for UCI letter and spam datasets."""
 
 # Necessary packages
-from __future__ import absolute_import, division, print_function
-
 import argparse
 import numpy as np
 
@@ -35,6 +35,7 @@ from gain import gain
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor
+
 from hyperimpute.plugins.imputers import Imputers
 
 
@@ -139,13 +140,12 @@ def main(args, loop=False):
     # Print the command if run in a loop
     if loop: print(
         f'python main.py --data_name {data_name} --miss_rate {miss_rate}'
-        f'{f' --batch_size {args.batch_size} --hint_rate {args.hint_rate} --alpha {args.alpha}'
-           f'--iterations {args.iterations}' if 'IterativeImputer' not in method else ''}'
+        f'{f" --batch_size {args.batch_size} --hint_rate {args.hint_rate} --alpha {args.alpha} --iterations {args.iterations}" if "IterativeImputer" not in method else ""}'
         f' --method {method}'
-        f'{f' --sparsity {args.sparsity}' if args.sparsity > 0 else ''}'
-        f'{f' --init {args.init}' if args.init else ''}'
-        f'{f' --n_nearest_features {n_nearest_features}' if n_nearest_features else ''}'
-        f'{f' --save --folder {folder}' if save else ''}\n'
+        f'{f" --sparsity {args.sparsity}" if args.sparsity > 0 else ""}'
+        f'{f" --init {args.init}" if args.init else ""}'
+        f'{f" --n_nearest_features {n_nearest_features}" if n_nearest_features else ""}'
+        f'{f" --save --folder {folder}" if save else ""}\n'
     )
 
     # Load data and introduce missingness
@@ -160,19 +160,22 @@ def main(args, loop=False):
             'sparsity': args.sparsity,
             'init': args.init
         }
-        imputed_data_x, G_tensors = gain(miss_data_x, gain_parameters)
+        imputed_data_x, G_tensors, flops = gain(miss_data_x, gain_parameters)
     elif method == 'IterativeImputer':
         print('Impute missing data using Iterative Imputer')
         imputed_data_x = iterative_imputer(miss_data_x, n_nearest_features)
         G_tensors = []  # No tensors to save
+        flops = None  # No FLOPS to calculate
     elif method == 'IterativeImputerRF':
         print('Impute using Iterative Imputer with RandomForest Regressor')
         imputed_data_x = iterative_imputer_rf(miss_data_x, n_nearest_features)
         G_tensors = []  # No tensors to save
+        flops = None  # No FLOPS to calculate
     else:  # Expectation Maximization
         print('Impute using Iterative Imputer with Expectation Maximization')
         imputed_data_x = expectation_maximization(miss_data_x)
         G_tensors = []  # No tensors to save
+        flops = None  # No FLOPS to calculate
 
     # Report the RMSE performance
     rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
@@ -189,7 +192,7 @@ def main(args, loop=False):
 
     # Save the imputed data
     if save: save_imputation_results(imputed_data_x, data_name, miss_rate, method, args.init, args.sparsity,
-                                     n_nearest_features, rsme_performance, G_tensors, folder)
+                                     n_nearest_features, rsme_performance, G_tensors, flops, folder)
 
     return imputed_data_x, rmse
 
@@ -199,7 +202,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--data_name',
-        choices=['letter', 'spam', 'mnist', 'fashion_mnist', 'health'],
+        choices=['letter', 'spam', 'health', 'mnist', 'fashion_mnist', 'cifar10'],
         default='mnist',
         type=str)
     parser.add_argument(
@@ -209,22 +212,22 @@ if __name__ == '__main__':
         type=float)
     parser.add_argument(
         '--batch_size',
-        help='the number of samples in mini-batch',
+        help='the number of samples in mini-batch (GAIN)',
         default=128,
         type=int)
     parser.add_argument(
         '--hint_rate',
-        help='hint probability',
+        help='hint probability (GAIN)',
         default=0.9,
         type=float)
     parser.add_argument(
         '--alpha',
-        help='hyperparameter',
+        help='hyperparameter (GAIN)',
         default=100,
         type=float)
     parser.add_argument(
         '--iterations',
-        help='number of training iterations',
+        help='number of training iterations (GAIN)',
         default=10000,
         type=int)
     parser.add_argument(
@@ -252,9 +255,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--save',
         help='save the output to csv file',
-        action='store_true',
-        default=False,
-        type=bool)
+        action='store_true')
     parser.add_argument(
         '--folder',
         help='the folder to save the csv files in',

@@ -31,6 +31,7 @@
 (15) sample_batch_index: sample random batch index
 (16) save_imputation_results: Save the imputation and initialized tensors to csv files
 (17) load_imputed_data: Load the RMSE scores of the imputed data
+(18) get_flops: ...
 """
 
 # Necessary packages
@@ -43,6 +44,9 @@ import pandas as pd
 import tensorflow.compat.v1 as tf
 
 tf.disable_v2_behavior()
+
+from sparse_utils import get_stats
+import keras
 
 
 def normalization(data, parameters=None):
@@ -169,7 +173,7 @@ def xavier_init(size, seed=None):
       - seed: random seed
 
     Returns:
-      - initialized random vector.
+      - initialized normal random vector.
     """
 
     # Fix seed for run-to-run consistency
@@ -426,7 +430,7 @@ def sample_batch_index(total, batch_size, seed=None):
 
 
 def save_imputation_results(data_save, data_name, miss_rate, method, init, sparsity, n_nearest_features, rmse, tensors,
-                            folder):
+                            flops, folder):
     """Saves the imputed data to a csv file
 
     Args:
@@ -445,6 +449,7 @@ def save_imputation_results(data_save, data_name, miss_rate, method, init, spars
     # Set the folder paths and filename
     folder_inits = f'{folder}_initializations'
     folder_metrics = f'{folder}_metrics'
+    folder_flops = f'{folder}_flops'
     path_metrics = f'{folder_metrics}/successes_and_failures.csv'
 
     if method == 'GAIN':
@@ -464,6 +469,7 @@ def save_imputation_results(data_save, data_name, miss_rate, method, init, spars
     if not isdir(folder): makedirs(folder)
     if not isdir(folder_inits): makedirs(folder_inits)
     if not isdir(folder_metrics): makedirs(folder_metrics)
+    if not isdir(folder_flops): makedirs(folder_flops)
 
     # Save the imputation
     if rmse != 'nan':
@@ -489,7 +495,7 @@ def save_imputation_results(data_save, data_name, miss_rate, method, init, spars
             & (metrics['init'] == init if init else metrics['init'].isnull())
             & (metrics['sparsity'] == sparsity)
             & (metrics['n_nearest_features'] == n_nearest_features if n_nearest_features
-               else metrics['n_nearest_features'].isnull())
+            else metrics['n_nearest_features'].isnull())
         ].empty:
             metrics.loc[
                 (metrics['dataset'] == data_name)
@@ -519,6 +525,10 @@ def save_imputation_results(data_save, data_name, miss_rate, method, init, spars
     # Save the success and failure count
     metrics.to_csv(path_metrics, index=False)
 
+    # Save the flops
+    flops = pd.DataFrame(flops)
+    flops.to_csv(f'{folder_flops}/{filename}.csv', index=False, header=False)
+
 
 def load_imputed_data(folder='imputed_data'):
     """Load the RMSE scores of the imputed data
@@ -536,7 +546,7 @@ def load_imputed_data(folder='imputed_data'):
         files = listdir(folder)
 
         # Return immediately if the folder is empty
-        if len(files) == 0: return []
+        if len(files) == 0: return concat_results
 
         # Get the data_name, miss_rate, sparsity, initialization and RMSE scores from the file names
         results = []
@@ -581,3 +591,53 @@ def load_imputed_data(folder='imputed_data'):
         concat_results.append(res_)
 
     return concat_results
+
+
+def get_flops(theta, sparsity, init):
+    W1, W2, W3, b1, b2, b3 = theta
+
+    # Build the Keras layers
+    W1_l = keras.layers.Dense(W1.shape[1], activation='relu')
+    W1_l.build((W1.shape[1], W1.shape[0]))
+    W1_l.set_weights([W1, b1])
+    W1_l.kernel.name = 'G_W1'
+
+    W2_l = keras.layers.Dense(W2.shape[1], activation='relu')
+    W2_l.build((W2.shape[1], W2.shape[0]))
+    W2_l.set_weights([W2, b2])
+    W2_l.kernel.name = 'G_W2'
+
+    W3_l = keras.layers.Dense(W3.shape[1], activation='sigmoid')
+    W3_l.build((W3.shape[1], W3.shape[0]))
+    W3_l.set_weights([W3, b3])
+    W3_l.kernel.name = 'G_W3'
+
+    layers = [W1_l, W2_l, W3_l]
+
+    # Calculate the FLOPs
+    if init in ('Dense', 'Random'):
+        stats = get_stats(
+            layers,
+            default_sparsity=sparsity,
+            method='random',
+            first_layer_name='G_W1',
+            last_layer_name='G_W3'
+        )
+    else:  # Erdos Renyi (Random Weight)
+        custom_sparsities = {
+            'G_W1': (W1.size - np.count_nonzero(W1)) / W1.size,
+            'G_W2': (W2.size - np.count_nonzero(W2)) / W2.size,
+            'G_W3': (W3.size - np.count_nonzero(W3)) / W3.size
+        }
+
+        stats = get_stats(
+            layers,
+            default_sparsity=sparsity,
+            method='erdos_renyi',
+            custom_sparsities=custom_sparsities,
+            first_layer_name='G_W1',
+            last_layer_name='G_W3'
+        )
+
+    flops = int(np.ceil(stats[0]))
+    return flops
