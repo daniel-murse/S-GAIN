@@ -15,8 +15,8 @@
 """Utility functions for GAIN.
 
 (1) normalization: MinMax Normalizer
-(2) renormalization: Recover the data from normalzied data
-(3) rounding: Handlecategorical variables after imputation
+(2) renormalization: Recover the data from normalized data
+(3) rounding: Handle categorical variables after imputation
 (4) rmse_loss: Evaluate imputed data in terms of RMSE
 (5) xavier_init: Xavier initialization
 (6) random_init: Random initialization
@@ -31,7 +31,7 @@
 (15) sample_batch_index: sample random batch index
 (16) save_imputation_results: Save the imputation and initialized tensors to csv files
 (17) load_imputed_data: Load the RMSE scores of the imputed data
-(18) get_flops: ...
+(18) get_flops: compute the inference FLOPs
 """
 
 # Necessary packages
@@ -45,7 +45,7 @@ import tensorflow.compat.v1 as tf
 
 tf.disable_v2_behavior()
 
-from sparse_utils import get_stats
+from flops.sparse_utils import get_stats
 import keras
 
 
@@ -594,6 +594,16 @@ def load_imputed_data(folder='imputed_data'):
 
 
 def get_flops(theta, sparsity, init):
+    """Compute the inference FLOPs of one of the models (generator or discriminator).
+
+    Args:
+        theta: the layer weights and biases of the model
+        sparsity: the initial sparsity of the model
+        init: the initialization used
+
+    Returns:
+        - flops: the inference FLOPs
+    """
     W1, W2, W3, b1, b2, b3 = theta
 
     # Build the Keras layers
