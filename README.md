@@ -1,64 +1,138 @@
-# Codebase for "Sparse Generative Adversarial Imputation Networks (Sparse GAIN)"
+# Codebase of S-GAIN
 
 Authors: Brian van Oers, Isil Baysal Erez
 
-Paper: *reference to paper here*
+Contact: b.p.vanoers@student.utwente.nl
 
-Paper link: *link to paper here*
+We adapted the original GAIN code for our work: J. Yoon, J. Jordon and M. van der Schaar, 
+["GAIN: Missing Data Imputation using Generative Adversarial Nets," International Conference on Machine Learning (ICML), 2018.](https://github.com/jsyoon0823/GAIN)
 
-Contact: *contact information here*
+We created a framework for (automated) testing and implemented sparse initialization approaches to improve computational
+efficiency and therefore energy consumption, memory usage and imputation time, and possibly increase performance and
+reduce failure rates. We plan to turn these initializations into full Dynamic Sparse Training strategies, rebuild the 
+model in TensorFlow 2.x using Sparse Tensors and INT8 precision, and then run it on the GPU to speed up the experiments.
 
-This code is based on Jinsung Yoon, James Jordon and Mihaela van der Schaar's work ["GAIN: Missing Data Imputation using Generative Adversarial Nets," International Conference on Machine Learning (ICML), 2018.](https://github.com/jsyoon0823/GAIN) and adapted to use sparse initializations, as well as some other methods of imputation for comparison.
-This is done with intent to increase performance: i.e. decrease the RMSE, decrease the memory requirement, decrease the run time, decrease the total FLOPs, decrease the failure rate, or any combination thereof, as compared to the original dense model and other imputation methods.
+We ran our experiments using python 3.11, earlier or later versions might have package conflicts.
 
-### Adaptations
+---
 
-- We fixed the seed of the binary sampler when creating missingness in the data to ensure consistency between results.
-- We added a random sparse initialization method with an optional fixed seed based on the index of the passed layers.
-- We added Erdos Renyi initialization for sparsity with an optional fixed seed based on the index of the passed layers.
-- We added a loop to run main.py for different settings until the desired number of results for each setting is achieved.
-- We added the functionality to save the imputations, the initialized weights of the generator and the success and failure counts.
-- We added a jupyter notebook to compile the results and return the RMSE mean and standard deviation, the success and failure rate and total FLOPs, as well as plotting these in a graph.
-- We added the Fashion MNIST, CIFAR10 and Maternal Health Risk dataset. For the health dataset, the labels have been removed, just as is the case for the original spam and letter datasets.
-- We added a command for n_nearest_features for the Iterative Imputers as they would run out of memory on large datasets with the default setting.
+## How to run the command
 
-### Possible improvements
+### Explanation of parameters
 
-- Change loop_main.py to a shell script to ensure tensorflow restarts every run. We have a problem with tensorflow slowing down each subsequent run and eventually running out of memory.
-- Add more initializations: i.e. Erdos Renyi Kernel, SNIP and RSensitivity.
-- Use Dynamic Sparse Training instead of Static Sparse Training.
-- Upgrade to Tensorflow v2 and implement the use of sparse tensors.
+####
+- **dataset:** the dataset to use [spam, letter, health, mnist, fashion_mnist, cifar10]
+- **miss_rate:** the probability of missing elements in the data (default: 0.2)
+- **miss_modality:** the modality of missing data [MCAR, MAR, MNAR] (default: MCAR)
+- **seed:** the seed used to introduce missing elements in the data (optional)
 
-### Command inputs
+#### 
+- **batch_size:** the number of samples in mini-batch (default: 128)
+- **hint_rate:** the hint probability (default: 0.9)
+- **alpha:** the hyperparameter (default: 100)
+- **iterations (epochs):** the number of training iterations (epochs) (default: 10000)
+- **generator_sparsity:** the probability of sparsity in the generator (default: 0)
+- **generator_modality:** the initialization and pruning and regrowth strategy of the generator [dense, random, erdos_renyi, ERRW] (default: dense)
+- **discriminator_sparsity:** the probability of sparsity in the discriminator (default: 0)
+- **discriminator_modality:** the initialization and pruning and regrowth strategy of the discriminator (default: dense)
 
-- data_name: letter, spam, health, mnist, fashion_mnist or cifar10
-- miss_rate: probability of missing components
-- batch_size: batch size
-- hint_rate: hint rate
-- alpha: hyperparameter
-- iterations: iterations
-- method: gain, iterative_imputer, iterative_imputer_rf
-- init: xavier (dense, full), random, erdos_renyi (ER), erdos_renyi_random_weights (ERRW) (GAIN only)
-- sparsity: generator sparsity level (Sparse GAIN only)
-- n_nearest_features: number of nearest features (Iterative Imputers only)
-- save: save imputation result to a csv file
-- folder: name of folder to save imputation results to
+#### 
+- **folder (directory):** save the imputed data to a different folder (optional) [default: output]
+- **verbose:** enable verbose logging
+- **no_log:** turn off the logging of metrics (also disables graphs and model)
+- **no_graph:** don't plot graphs after training
+- **no_model:** don't save the trained model
+- **no_save:** don't save the imputation
 
-### Example commands
+### Example commands (default parameters)
 
+###### Minimum required parameters (dataset only, random seed)
 ```shell
-$ python main.py --data_name spam --miss_rate 0.2 --batch_size 128 --hint_rate 0.9 --alpha 100 --iterations 10000 --method gain --init random --sparsity 0.9 --save --folder imputed_data
+$ python main.py spam
 ```
+###### Fully specified parameters (fixed seed)
 ```shell
-$ python main.py --data_name fashion_mnist --miss_rate 0.2 --method IterativeImputer --n_nearest_features 50 --save --folder imputed_data
+$ python main.py spam --miss_rate 0.2 --miss_modality MCAR --seed 0 --batch_size 128 --hint_rate 0.9 --alpha 100 --iterations 10000 --generator_sparsity 0 --generator_modality dense --discriminator_sparsity 0 --discriminator_modality dense --folder output
+```
+###### Fully specified parameters with abbreviated flags (fixed seed)
+```shell
+$ python main.py spam -mr 0.2 -mm MCAR -s 0 -bs 128 -hr 0.9 -a 100 -i 10000 -gs 0 -gm dense -ds 0 -dm dense -f output
+```
+###### Set flags
+```shell
+$ python main.py spam --verbose --no_log --no_graph --no_model --no_save
 ```
 
 ### Outputs
 
--   imputed_data_x: imputed data
--   rmse: Root Mean Squared Error
+- **imputed_data_x:** the imputed data
+- **rmse:** Root Mean Squared Error
 
-### References
+---
 
-*proper reference to the original GAIN paper here*
+### Analyze
 
+- **all:** plot all the graphs
+- **rmse:** plot the RMSE graphs
+- **success_rate:** plot the success rate graphs
+- **save:** save the analysis
+- **input (experiments):** the folder where the experiments were saved to (optional, default: output)
+- **output (analysis):** save the analysis to a different folder (optional, default: analysis)
+
+```shell
+$ python analyze.py --all --save --experiments output --analysis analysis 
+```
+
+- **exps:** a Pandas DataFrame with the computed metrics (RMSE mean, std and improvement, successes, total and success rate)
+
+---
+
+## Folders and files
+
+#### 
+- **datasets:** Contains (some of) the datasets to run the S-GAIN imputer on. A dataset must be complete, have a header and the labels and index must be removed. These datasets serve as x_train. (Todo: test with labels to test its classifier performance)
+- **datasets/health.csv:** UCI Maternal Health dataset.
+- **datasets/letter.csv:** UCI Letter dataset.
+- **datasets/spam.csv:** UCI Spambase dataset.
+
+#### 
+- **models:** Contains the different models. Currently only contains S-GAIN.
+- **models/s_gain_TFv2_INT8.py:** The S-GAIN imputer. This version uses TensorFlow 2.x and INT8 precision.
+- **models/s_gain_TFv1_FP32.py:** The S-GAIN imputer. This version uses TensorFlow 1.x and FP32 precision.
+
+#### 
+- **monitors:** Contains the monitor file. Used for measuring things.
+- **monitors/monitor.py:** The monitor file. Runs in a separate thread as to not interfere with S-GAIN.
+
+#### 
+- **output:** The output folder for the experiments.
+- **output/[experiment].csv:** The imputed data for the experiment.
+- **output/[experiment]_energy_consumption.png:** A graph of the energy consumption measured throughout the experiment.
+- **output/[experiment]_FLOPs.png:** A graph of the FLOPs measured throughout the experiment.
+- **output/[experiment]_imputation_time.png:** A graph of the imputation time measured throughout the experiment.
+- **output/[experiment]_log.json:** A log file of all measurements taken throughout the experiment.
+- **output/[experiment]_loss.png:** A graph of the loss measured throughout the experiment.
+- **output/[experiment]_memory_usage.png:** A graph of the memory usage measured throughout the experiment.
+- **output/[experiment]_model.json:** The imputed data for the specified experiment.
+- **output/[experiment]_RMSE.png:** A graph of the RMSE measured throughout the experiment.
+- **output/[experiment]_sparsity.png:** A graph of the sparsity measured throughout the experiment.
+
+#### 
+- **temp:** Contains temporary files. Used for logging measurements throughout the experiment.
+
+#### 
+- **utils:** Contains different utility files.
+- **utils/flops:** Contains code to calculate FLOPs. (copied from Google Research)
+- **utils/analysis.py:** Contains functions to analyze the experiments.
+- **utils/data_loader.py:** Loads the datasets.
+- **utils/graphs.py:** Plot all the relevant graphs.
+- **utils/inits_TFv2_INT8.py:** Contains all the different initialization strategies for the TFv2_INT8 version.
+- **utils/inits_TFv1_FP32.py:** Contains all the different initialization strategies for the TFv1_FP32 version.
+- **utils/load_store.py:** Loads and stores files.
+- **utils/metrics.py:** Calculates all the relevant metrics.
+- **utils/utils.py:** Contains other utilities.
+
+#### 
+- **analyze.py:** This file is used to run the analysis of the experiments.
+- **main.py:** The main file from which the experiments are run.
+- **run_experiments.py:** This file enables running multiple experiments consecutively.

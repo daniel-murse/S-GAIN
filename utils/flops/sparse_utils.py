@@ -20,7 +20,8 @@ from __future__ import absolute_import, division, print_function
 import re
 import numpy as np
 import tensorflow.compat.v1 as tf
-import counting
+
+from utils.flops import counting
 
 tf.disable_v2_behavior()
 

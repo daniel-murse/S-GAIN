@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 # coding=utf-8
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,185 +12,157 @@ from __future__ import absolute_import, division, print_function
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# We used original GAIN code to improve our works.
-'''GAIN function.
-Date: 2020/02/28
-Reference: J. Yoon, J. Jordon, M. van der Schaar, "GAIN: Missing Data 
-           Imputation using Generative Adversarial Nets," ICML, 2018.
-Paper Link: http://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
+"""Main function for S-GAIN."""
 
-'''
-
-"""Main function for UCI letter and spam datasets."""
-
-# Necessary packages
 import argparse
 import numpy as np
 
-from data_loader import data_loader
-from utils import rmse_loss, save_imputation_results
-from gain import gain
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer
-from sklearn.ensemble import RandomForestRegressor
-
-from hyperimpute.plugins.imputers import Imputers
+from models.s_gain_TFv1_FP32 import s_gain
+from monitors.monitor import Monitor
+from utils.data_loader import data_loader
+from utils.load_store import get_filepaths, save_imputation
+from utils.metrics import get_rmse
+from utils.graphs import plot_all
 
 
-def iterative_imputer(miss_data_x, n_nearest_features=None, seed=None):
-    """Perform missing data imputation using Iterative Imputer."""
-    imputer = IterativeImputer(max_iter=10, n_nearest_features=n_nearest_features, random_state=seed)
-    imputed_data_x = imputer.fit_transform(miss_data_x)
-    return imputed_data_x
+def main(args):
+    """Main function for S-GAIN:
+    1. Parse the arguments
+    2. Load and introduce missing elements in the data according to the provided miss rate and modality
+    3. Call S-GAIN
+    4. Save the imputed data, logs and trained model and plot the graphs
 
+    :param args:
+    - dataset: the dataset to use
+    - miss_rate: the probability of missing elements in the data
+    - miss_modality: the modality of missing data (MCAR, MAR, MNAR)
+    - seed: the seed used to introduce missing elements in the data (optional)
+    - batch_size: the number of samples in mini-batch
+    - hint_rate: the hint probability
+    - alpha: the hyperparameter
+    - iterations (epochs): the number of training iterations (epochs)
+    - generator_sparsity: the probability of sparsity in the generator
+    - generator_modality: the initialization and pruning and regrowth strategy of the generator
+    - discriminator_sparsity: the probability of sparsity in the discriminator
+    - discriminator_modality: the initialization and pruning and regrowth strategy of the discriminator
+    - folder (directory): the folder to save the imputed data to
+    - verbose: enable verbose output to console
+    - no_log: turn off the logging of metrics (also disables graphs and model)
+    - no_graph: don't plot graphs after training
+    - no_model: don't save the trained model
+    - no_save: don't save the imputation
 
-def iterative_imputer_rf(miss_data_x, n_nearest_features=None, seed=None):
-    """Perform missing data imputation using Iterative Imputer with RandomForest."""
-    rf_regressor = RandomForestRegressor(n_estimators=100, random_state=seed)
-    imputer = IterativeImputer(estimator=rf_regressor, max_iter=10, n_nearest_features=n_nearest_features,
-                               random_state=seed)
-    imputed_data_x = imputer.fit_transform(miss_data_x)
-    return imputed_data_x
-
-
-def expectation_maximization(miss_data_x):
-    """Perform missing data imputation using Expectation Maximization."""
-    imputer = Imputers().get('EM')
-    imputed_data_x = imputer.fit_transform(miss_data_x)
-    return imputed_data_x
-
-
-def main(args, loop=False):
-    """Main function for UCI letter and spam datasets.
-
-    Args:
-      - data_name: letter or spam
-      - miss_rate: probability of missing components
-      - batch_size: batch size
-      - hint_rate: hint rate
-      - alpha: hyperparameter
-      - iterations: iterations
-      - method: which method to use (gain, iterative_imputer, iterative_imputer_rf, expectation_maximization)
-      - sparsity: probability of sparsity in the generator (GAIN only)
-      - init: which initialization to use (xavier, random, erdos_renyi, snip, rsensitivity) (GAIN only)
-      - n_nearest_features: number of nearest features (Iterative Imputers only)
-      - save: save the output to csv file
-      - folder: the folder to save the csv files to
-
-    Returns:
-      - imputed_data_x: imputed data
-      - rmse: Root Mean Squared Error
+    :return:
+    - imputed_data_x: the imputed data
+    - rmse: the root mean squared error
     """
 
-    data_name = args.data_name.lower()
+    # Get the parameters
+    dataset = args.dataset.lower()
     miss_rate = args.miss_rate
-    n_nearest_features = args.n_nearest_features
-    save = args.save
+    miss_modality = args.miss_modality.upper()
+    seed = args.seed
+    batch_size = args.batch_size
+    hint_rate = args.hint_rate
+    alpha = args.alpha
+    iterations = args.iterations
+    generator_sparsity = args.generator_sparsity
+    generator_modality = args.generator_modality.lower()
+    discriminator_sparsity = args.discriminator_sparsity
+    discriminator_modality = args.discriminator_modality.lower()
     folder = args.folder
+    verbose = args.verbose
+    no_log = args.no_log
+    no_graph = args.no_graph
+    no_model = args.no_model
+    no_save = args.no_save
 
-    # Standardize method, init and sparsity for printing
-    if args.method.lower() == 'gain':
-        method = 'GAIN'
-        if args.init.lower() in ('xavier', 'dense', 'full'):
-            args.sparsity = 0.
-            args.init = 'Dense'
-        elif args.init.lower() == 'random':
-            args.init = 'Random'
-        elif args.init.lower() in ('erdos_renyi', 'er'):
-            args.init = 'ER'
-        elif args.init.lower() in ('erdos_renyi_kernel', 'erk'):
-            args.init = 'ERK'
-            print('ERK initialization not implemented. Exiting the program.')
-            return
-        elif args.init.lower() in ('erdos_renyi_random_weights', 'errw'):
-            args.init = 'ERRW'
-        elif args.init.lower() in ('erdos_renyi_kernel_random_weights', 'erkrw'):
-            args.init = 'ERKRW'
-            print('ERKRW initialization not implemented. Exiting the program.')
-            return
-        elif args.init.lower() == 'snip':
-            args.init = 'SNIP'
-            print('SNIP initialization not implemented. Exiting the program.')
-            return
-        elif args.init.lower() == 'rsensitivity':
-            args.init = 'RSensitivity'
-            print('RSensitivity initialization not implemented. Exiting the program.')
-            return
-        else:  # This should not happen.
-            print(f'Invalid initialization "{args.init}". Exiting the program.')
-            return
-    elif args.method.lower() == 'iterative_imputer':
-        method = 'IterativeImputer'
-        args.sparsity = 0.
-        args.init = ''
-    elif args.method.lower() == 'iterative_imputer_rf':
-        method = 'IterativeImputerRF'
-        args.sparsity = 0.
-        args.init = ''
-    elif args.method.lower() in ('expectation_maximization', 'em'):
-        method = 'ExpectationMaximization'
-        args.sparsity = 0.
-        args.init = ''
-    else:  # This should not happen.
-        print(f'Invalid method "{args.method}". Exiting the program.')
-        return
+    # Standardization
+    def sparsity_modality(sparsity, modality):
+        if sparsity == 0 or modality == 'dense':
+            return 0, 'dense'
+        elif modality == 'random':
+            return sparsity, modality
+        elif modality in ('er', 'erdos_renyi'):
+            return sparsity, 'ER'
+        elif modality in ('erk', 'erdos_renyi_kernel'):
+            return sparsity, 'ERK'
+        elif modality in ('errw', 'erdos_renyi_random_weight'):
+            return sparsity, 'ERRW'
+        elif modality in ('erkrw', 'erdos_renyi_kernel_random_weight'):
+            return sparsity, 'ERKRW'
+        return None
 
-    # Print the command if run in a loop
-    if loop: print(
-        f'python main.py --data_name {data_name} --miss_rate {miss_rate}'
-        f'{f" --batch_size {args.batch_size} --hint_rate {args.hint_rate} --alpha {args.alpha} --iterations {args.iterations}" if "IterativeImputer" not in method else ""}'
-        f' --method {method}'
-        f'{f" --sparsity {args.sparsity}" if args.sparsity > 0 else ""}'
-        f'{f" --init {args.init}" if args.init else ""}'
-        f'{f" --n_nearest_features {n_nearest_features}" if n_nearest_features else ""}'
-        f'{f" --save --folder {folder}" if save else ""}\n'
+    generator_sparsity, generator_modality = sparsity_modality(generator_sparsity, generator_modality)
+    discriminator_sparsity, discriminator_modality = sparsity_modality(discriminator_sparsity, discriminator_modality)
+
+    if seed is None: seed = np.random.randint(2 ** 31)
+
+    # Exit program if a modality is not implemented yet Todo: implement the modalities
+    not_implemented = ['MAR', 'MNAR', 'ERK', 'erdos_renyi_kernel', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP',
+                       'GRASP', 'RSensitivity']
+    if miss_modality in not_implemented:
+        print(f'Miss modality {miss_modality} is not implemented. Exiting program...')
+        return None
+    if generator_modality in not_implemented:
+        print(f'Generator modality {discriminator_modality} is not implemented. Exiting program...')
+        return None
+    if discriminator_modality in not_implemented:
+        print(f'Discriminator modality {discriminator_modality} is not implemented. Exiting program...')
+        return None
+
+    # Name the experiment
+    experiment = f'S-GAIN_{dataset}_MR_{miss_rate}_MM_{miss_modality}_S_0x{seed:08x}_BS_{batch_size}_HR_{hint_rate}' \
+                 f'_a_{alpha}_i_{iterations}_GS_{generator_sparsity}_GM_{generator_modality}' \
+                 f'_DS_{discriminator_sparsity}_DM_{discriminator_modality}'
+
+    if verbose:
+        print(experiment)
+        print('Loading data...')
+
+    # Load the data with missing elements
+    data_x, miss_data_x, data_mask = data_loader(dataset, miss_rate, miss_modality, seed)
+
+    # S-GAIN
+    monitor = Monitor(data_x, data_mask, experiment=experiment, verbose=verbose) if not no_log else None
+    imputed_data_x = s_gain(
+        miss_data_x, batch_size=batch_size, hint_rate=hint_rate, alpha=alpha, iterations=iterations,
+        generator_sparsity=generator_sparsity, generator_modality=generator_modality,
+        discriminator_sparsity=discriminator_sparsity, discriminator_modality=discriminator_modality,
+        verbose=verbose, no_model=no_model, monitor=monitor
     )
 
-    # Load data and introduce missingness
-    ori_data_x, miss_data_x, data_m = data_loader(data_name, miss_rate)
-    if method == 'GAIN':
-        print('Impute missing data using GAIN')
-        gain_parameters = {
-            'batch_size': args.batch_size,
-            'hint_rate': args.hint_rate,
-            'alpha': args.alpha,
-            'iterations': args.iterations,
-            'sparsity': args.sparsity,
-            'init': args.init
-        }
-        imputed_data_x, G_tensors, flops = gain(miss_data_x, gain_parameters)
-    elif method == 'IterativeImputer':
-        print('Impute missing data using Iterative Imputer')
-        imputed_data_x = iterative_imputer(miss_data_x, n_nearest_features)
-        G_tensors = []  # No tensors to save
-        flops = None  # No FLOPS to calculate
-    elif method == 'IterativeImputerRF':
-        print('Impute using Iterative Imputer with RandomForest Regressor')
-        imputed_data_x = iterative_imputer_rf(miss_data_x, n_nearest_features)
-        G_tensors = []  # No tensors to save
-        flops = None  # No FLOPS to calculate
-    else:  # Expectation Maximization
-        print('Impute using Iterative Imputer with Expectation Maximization')
-        imputed_data_x = expectation_maximization(miss_data_x)
-        G_tensors = []  # No tensors to save
-        flops = None  # No FLOPS to calculate
+    # Calculate the RMSE
+    rmse = get_rmse(data_x, imputed_data_x, data_mask, round=True)
+    if verbose: print(f'RMSE: {rmse}')
 
-    # Report the RMSE performance
-    rmse = rmse_loss(ori_data_x, imputed_data_x, data_m)
-    rsme_performance = str(np.round(rmse, 4))
-    print(f'{method} {args.init} RMSE Performance: {rsme_performance}')
+    # Save the imputation, the logs and the (trained) model, and plot the graphs
+    filepath_imputed_data, filepath_log, filepath_model, filepath_rmse, filepath_imputation_time, \
+        filepath_energy_consumption, filepath_memory_usage, filepath_sparsity, filepath_flops, filepath_loss \
+        = get_filepaths(folder, experiment, rmse)
 
-    # Standardize data_name for file naming
-    if data_name == 'fashion_mnist':
-        data_name = 'FashionMNIST'
-    elif data_name == 'mnist':
-        data_name = 'MNIST'
-    elif data_name == 'cifar10':
-        data_name = 'CIFAR10'
+    if not no_save:
+        if verbose: print('Saving imputation...')
+        save_imputation(filepath_imputed_data, imputed_data_x)
 
-    # Save the imputed data
-    if save: save_imputation_results(imputed_data_x, data_name, miss_rate, method, args.init, args.sparsity,
-                                     n_nearest_features, rsme_performance, G_tensors, flops, folder)
+    if not no_log:
+        logs = monitor.save_logs(filepath_log)
+
+        if not no_graph:
+            if verbose: print('Plotting graphs...')
+            plot_all(filepath_rmse, filepath_imputation_time, filepath_energy_consumption, filepath_memory_usage,
+                     filepath_sparsity, filepath_flops, filepath_loss, logs)
+
+        if not no_model:
+            if verbose: print('Saving (trained) model...')
+            monitor.save_model(filepath_model)
+
+    if verbose: print(f'Finished.')
+
+    # rmse file for the progress counter
+    f = open('temp/rmse', 'w')
+    f.write(str(rmse))
+    f.close()
 
     return imputed_data_x, rmse
 
@@ -201,68 +171,97 @@ if __name__ == '__main__':
     # Inputs for the main function
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--data_name',
-        choices=['letter', 'spam', 'health', 'mnist', 'fashion_mnist', 'cifar10'],
-        default='mnist',
+        'dataset',
+        help='which dataset to use',
+        choices=['health', 'letter', 'spam', 'mnist', 'fashion_mnist', 'cifar10'],
         type=str)
     parser.add_argument(
-        '--miss_rate',
-        help='missing data probability',
+        '-mr', '--miss_rate',
+        help='the probability of missing elements in the data',
         default=0.2,
         type=float)
     parser.add_argument(
-        '--batch_size',
-        help='the number of samples in mini-batch (GAIN)',
+        '-mm', '--miss_modality',
+        help='the modality of missing data (MCAR, MAR, MNAR)',
+        choices=['MCAR', 'MAR', 'MNAR'],
+        default='MCAR',
+        type=str)
+    parser.add_argument(
+        '-s', '--seed',
+        help='the seed used to introduce missing elements in the data (optional)',
+        default=None,
+        type=int)
+    parser.add_argument(
+        '-bs', '--batch_size',
+        help='the number of samples in mini-batch',
         default=128,
         type=int)
     parser.add_argument(
-        '--hint_rate',
-        help='hint probability (GAIN)',
+        '-hr', '--hint_rate',
+        help='the hint probability',
         default=0.9,
         type=float)
     parser.add_argument(
-        '--alpha',
-        help='hyperparameter (GAIN)',
+        '-a', '--alpha',
+        help='the hyperparameter',
         default=100,
         type=float)
     parser.add_argument(
-        '--iterations',
-        help='number of training iterations (GAIN)',
+        '-i', '--iterations', '-e', '-epochs',
+        help='the number of training iterations (epochs)',
         default=10000,
         type=int)
     parser.add_argument(
-        '--method',
-        choices=['gain', 'iterative_imputer', 'iterative_imputer_rf', 'expectation_maximization', 'em'],
-        default='gain',
-        type=str)
-    parser.add_argument(
-        '--init',
-        help='initialization method (GAIN only)',
-        choices=['xavier', 'dense', 'full', 'random', 'erdos_renyi', 'er', 'erdos_renyi_random_weights', 'errw', 'snip',
-                 'rsensitivity'],
-        default='full',
-        type=str)
-    parser.add_argument(
-        '--sparsity',
-        help='probability of sparsity in the generator (GAIN only)',
+        '-gs', '--generator_sparsity',
+        help='the probability of sparsity in the generator',
         default=0,
         type=float)
     parser.add_argument(
-        '--n_nearest_features',
-        help='number of nearest features (Iterative Imputers only)',
-        default=None,
+        '-gm', '--generator_modality',
+        help='the initialization and pruning and regrowth strategy of the generator',
+        choices=['dense', 'random', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
+                 'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
+                 'RSensitivity'],
+        default='dense',
+        type=str)
+    parser.add_argument(
+        '-ds', '--discriminator_sparsity',
+        help='thee probability of sparsity in the discriminator',
+        default=0,
         type=float)
     parser.add_argument(
-        '--save',
-        help='save the output to csv file',
+        '-dm', '--discriminator_modality',
+        help='the initialization and pruning and regrowth strategy of the discriminator',
+        choices=['dense', 'random', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
+                 'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
+                 'RSensitivity'],
+        default='dense',
+        type=str)
+    parser.add_argument(
+        '-f', '--folder', '-d', '-dir', '--directory',
+        help='save the imputed data to a different folder (optional)',
+        default='output',
+        type=str)
+    parser.add_argument(
+        '-v', '--verbose',
+        help='enable verbose logging',
+        action='store_true')
+    parser.add_argument(  # Todo: control per monitor?
+        '-nl', '--no_log',
+        help='turn off the logging of metrics (also disables graphs and model)',
         action='store_true')
     parser.add_argument(
-        '--folder',
-        help='the folder to save the csv files in',
-        default='imputed_data',
-        type=str)
-
+        '-ng', '--no_graph',
+        help="don't plot graphs after training",
+        action='store_true')
+    parser.add_argument(
+        '-nm', '--no_model',
+        help="don't save the trained model",
+        action='store_true')
+    parser.add_argument(
+        '-ns', '--no_save',
+        help="don't save the imputation",
+        action='store_true')
     args = parser.parse_args()
 
-    # Calls main function
-    imputed_data, rmse = main(args)
+    main(args)
