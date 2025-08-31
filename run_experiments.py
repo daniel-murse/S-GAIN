@@ -118,4 +118,4 @@ if __name__ == '__main__':
         else:
             break
 
-    if analyze: os.system(f'python analyze.py --all --experiments {output_folder} --analysis {analysis_folder} --save')
+    if analyze: os.system(f'python analyze.py --all -in {output_folder} -out {analysis_folder} --save --verbose')

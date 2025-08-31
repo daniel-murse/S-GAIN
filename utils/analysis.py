@@ -37,17 +37,20 @@ ds = ['discriminator_sparsity']
 dm = ['discriminator_modality']
 
 
-def compile_metrics(experiments, save=None, folder=None):
+def compile_metrics(experiments, save=None, folder=None, verbose=False):
     """Compile the metrics of the provided experiments.
     Metrics: RMSE mean, std and improvement, and successes, total runs and success rate
 
     :param experiments: a Pandas DataFrame with the experiments to compile
     :param save: whether to save the compiled metrics
     :param folder: the folder to save the compiled metrics to
+    :param verbose: enable verbose output to console
 
     :return:
     - exps: a Pandas DataFrame of the compiled metrics
     """
+
+    if verbose: print('Compiling metrics...')
 
     # Calculate mean, std, successes, total_runs and success_rate
     exps = experiments.drop(['index', 'filetype'], axis='columns')
@@ -74,18 +77,20 @@ def compile_metrics(experiments, save=None, folder=None):
 
     # Save the metrics
     if save:
+        if verbose: print('Saving compiled metrics...')
         if not isdir(folder): mkdir(folder)
         exps.to_csv(f'{folder}/metrics.csv', index=False)
 
     return exps
 
 
-def plot_rmse(experiments, save=False, folder='analysis'):
+def plot_rmse(experiments, save=False, folder='analysis', verbose=False):
     """Plot the RMSE of the provided experiments.
 
     :param experiments: a Pandas DataFrame with the experiments to compile
     :param save: whether to save the compiled metrics
     :param folder: the folder to save the compiled metrics to
+    :param verbose: enable verbose output to console
     """
 
     def subplot(ax, M_rmse_mean_std, M, legend_ax, sparsity='all', modality='settings'):
@@ -168,11 +173,14 @@ def plot_rmse(experiments, save=False, folder='analysis'):
                 lgnd_title = f'{subtitle} modality'
             lgnd.set_title(lgnd_title, prop={'size': 13})
 
+    if verbose: print(f'Plotting RMSE...')
+
     # Group by dataset, miss_rate, miss_modality and seed
     exps = experiments.drop(['index', 'filetype'], axis='columns')
     for (dataset, miss_rate, miss_modality, seed), d_mr_mm_s_group in exps.groupby(d_mr_mm_s):
 
         title = f'{dataset}_{miss_rate}_{miss_modality}_{hex(seed)}'
+        if verbose: print(f'{title}')
         d_mr_mm_s_group.drop(d_mr_mm_s, axis='columns', inplace=True)
 
         # Get the tested sparsities and modalities, and the number of needed rows for the graph
@@ -264,18 +272,20 @@ def plot_rmse(experiments, save=False, folder='analysis'):
         plt.suptitle(title, size=24)
 
         if save:
+            if verbose: print(f'Saving plot...')
             path = f'{folder}/{title}_RMSE.pdf'
             plt.savefig(path, format='pdf', dpi=1200)
 
         fig.show()
 
 
-def plot_success_rate(experiments, save=False, folder='analysis'):
+def plot_success_rate(experiments, save=False, folder='analysis', verbose=False):
     """Plot the success rate of the provided experiments.
 
     :param experiments: a Pandas DataFrame with the experiments to compile
     :param save: whether to save the compiled metrics
     :param folder: the folder to save the compiled metrics to
+    :param verbose: enable verbose output to console
     """
 
     def subplot(ax, M_rmse_mean_std, M, legend_ax, sparsity='all', modality='settings'):
@@ -354,11 +364,14 @@ def plot_success_rate(experiments, save=False, folder='analysis'):
                 lgnd_title = f'{subtitle} modality'
             lgnd.set_title(lgnd_title, prop={'size': 13})
 
+    if verbose: print(f'Plotting success rate...')
+
     # Group by dataset, miss_rate, miss_modality and seed
     exps = experiments.drop(['index', 'filetype'], axis='columns')
     for (dataset, miss_rate, miss_modality, seed), d_mr_mm_s_group in exps.groupby(d_mr_mm_s):
 
         title = f'{dataset}_{miss_rate}_{miss_modality}_{hex(seed)}'
+        if verbose: print(f'{title}')
         d_mr_mm_s_group.drop(d_mr_mm_s, axis='columns', inplace=True)
 
         # Get the tested sparsities and modalities, and the number of needed rows for the graph
@@ -456,6 +469,7 @@ def plot_success_rate(experiments, save=False, folder='analysis'):
         plt.suptitle(title, size=24)
 
         if save:
+            if verbose: print(f'Saving plot...')
             path = f'{folder}/{title}_success_rate.pdf'
             plt.savefig(path, format='pdf', dpi=1200)
 
