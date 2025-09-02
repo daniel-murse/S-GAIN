@@ -91,9 +91,9 @@ $ python analyze.py --all --save --experiments output --analysis analysis
 
 #### 
 - **datasets:** Contains (some of) the datasets to run the S-GAIN imputer on. A dataset must be complete, have a header and the labels and index must be removed. These datasets serve as x_train. (Todo: test with labels to test its classifier performance)
-- **datasets/health.csv:** UCI Maternal Health dataset.
-- **datasets/letter.csv:** UCI Letter dataset.
-- **datasets/spam.csv:** UCI Spambase dataset.
+- **datasets/health.csv:** Ahmed, M. (2020). Maternal Health Risk [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5DP5D.
+- **datasets/letter.csv:** Slate, D. (1991). Letter Recognition [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5ZP40.
+- **datasets/spam.csv:** Hopkins, M., Reeber, E., Forman, G., & Suermondt, J. (1999). Spambase [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C53G6X.
 
 #### 
 - **models:** Contains the different models. Currently only contains S-GAIN.
