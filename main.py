@@ -159,11 +159,6 @@ def main(args):
 
     if verbose: print(f'Finished.')
 
-    # rmse file for the progress counter
-    f = open('temp/rmse', 'w')
-    f.write(str(rmse))
-    f.close()
-
     return imputed_data_x, rmse
 
 

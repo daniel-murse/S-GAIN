@@ -15,7 +15,6 @@
 """Monitor class for S-GAIN:
 
 Todo: run in separate thread
-Todo: replace csv with byte/word files (np.loadtxt runs out of memory for the loss logs)
 
 (1) init_monitors: initialize the temporary folder
 (2) start_imputation_time_monitor: open the imputation time log file
@@ -48,7 +47,7 @@ Todo: replace csv with byte/word files (np.loadtxt runs out of memory for the lo
 """
 
 import json
-import numpy as np
+import struct
 
 from os import makedirs
 from os.path import isdir
@@ -109,7 +108,8 @@ class Monitor:
         :return: True
         """
 
-        self.f_RMSE = open(f'{self.directory}/rmse.csv', 'a')
+        self.f_RMSE = open(f'{self.directory}/rmse.bin', 'ab')
+
         # if self.verbose: print('Monitoring RMSE...')
         return True
 
@@ -119,8 +119,9 @@ class Monitor:
         :return: True
         """
 
-        self.f_imputation_time = open(f'{self.directory}/imputation_time.csv', 'a')
+        self.f_imputation_time = open(f'{self.directory}/imputation_time.bin', 'ab')
         self.imputation_time = time()
+
         if self.verbose: print('Monitoring imputation time...')
         return True
 
@@ -130,7 +131,8 @@ class Monitor:
         :return: True
         """
 
-        self.f_memory_usage = open(f'{self.directory}/memory_usage.csv', 'a')
+        self.f_memory_usage = open(f'{self.directory}/memory_usage.bin', 'ab')
+
         # if self.verbose: print('Monitoring memory usage...')
         return True
 
@@ -140,7 +142,8 @@ class Monitor:
         :return: True
         """
 
-        self.f_energy_consumption = open(f'{self.directory}/energy_consumption.csv', 'a')
+        self.f_energy_consumption = open(f'{self.directory}/energy_consumption.bin', 'ab')
+
         # if self.verbose: print('Monitoring energy consumption...')
         return True
 
@@ -150,15 +153,15 @@ class Monitor:
         :return: True
         """
 
-        self.f_sparsity_G = open(f'{self.directory}/sparsity_G.csv', 'a')
-        self.f_sparsity_G_W1 = open(f'{self.directory}/sparsity_G_W1.csv', 'a')
-        self.f_sparsity_G_W2 = open(f'{self.directory}/sparsity_G_W2.csv', 'a')
-        self.f_sparsity_G_W3 = open(f'{self.directory}/sparsity_G_W3.csv', 'a')
+        self.f_sparsity_G = open(f'{self.directory}/sparsity_G.bin', 'ab')
+        self.f_sparsity_G_W1 = open(f'{self.directory}/sparsity_G_W1.bin', 'ab')
+        self.f_sparsity_G_W2 = open(f'{self.directory}/sparsity_G_W2.bin', 'ab')
+        self.f_sparsity_G_W3 = open(f'{self.directory}/sparsity_G_W3.bin', 'ab')
 
-        self.f_sparsity_D = open(f'{self.directory}/sparsity_D', 'a')
-        self.f_sparsity_D_W1 = open(f'{self.directory}/sparsity_D_W1.csv', 'a')
-        self.f_sparsity_D_W2 = open(f'{self.directory}/sparsity_D_W2.csv', 'a')
-        self.f_sparsity_D_W3 = open(f'{self.directory}/sparsity_D_W3.csv', 'a')
+        self.f_sparsity_D = open(f'{self.directory}/sparsity_D.bin', 'ab')
+        self.f_sparsity_D_W1 = open(f'{self.directory}/sparsity_D_W1.bin', 'ab')
+        self.f_sparsity_D_W2 = open(f'{self.directory}/sparsity_D_W2.bin', 'ab')
+        self.f_sparsity_D_W3 = open(f'{self.directory}/sparsity_D_W3.bin', 'ab')
 
         # if self.verbose: print('Monitoring sparsity...')
         return True
@@ -169,8 +172,9 @@ class Monitor:
         :return: True
         """
 
-        self.f_FLOPs_G = open(f'{self.directory}/flops_G.csv', 'a')
-        self.f_FLOPs_D = open(f'{self.directory}/flops_D.csv', 'a')
+        self.f_FLOPs_G = open(f'{self.directory}/flops_G.bin', 'ab')
+        self.f_FLOPs_D = open(f'{self.directory}/flops_D.bin', 'ab')
+
         # if self.verbose: print('Monitoring FLOPs...')
         return True
 
@@ -180,9 +184,10 @@ class Monitor:
         :return: True
         """
 
-        self.f_loss_G = open(f'{self.directory}/loss_G.csv', 'a')
-        self.f_loss_D = open(f'{self.directory}/loss_D.csv', 'a')
-        self.f_loss_MSE = open(f'{self.directory}/loss_MSE.csv', 'a')
+        self.f_loss_G = open(f'{self.directory}/loss_G.bin', 'ab')
+        self.f_loss_D = open(f'{self.directory}/loss_D.bin', 'ab')
+        self.f_loss_MSE = open(f'{self.directory}/loss_MSE.bin', 'ab')
+
         if self.verbose: print('Monitoring loss...')
         return True
 
@@ -200,6 +205,7 @@ class Monitor:
         self.start_flops_monitor()
         self.start_loss_monitor()
         self.start_rmse_monitor()
+
         return True
 
     # Log metrics
@@ -213,7 +219,8 @@ class Monitor:
         """
 
         RMSE = get_rmse(self.data_x, imputed_data, self.data_mask)
-        self.f_RMSE.write(f'{RMSE}\n')
+        self.f_RMSE.write(struct.pack('f', RMSE))
+
         return RMSE
 
     def log_imputation_time(self):
@@ -224,25 +231,33 @@ class Monitor:
         """
 
         current_time = time()
-        step_time = round(current_time - self.imputation_time, 3)
-        self.f_imputation_time.write(f'{step_time}\n')
+        step_time = current_time - self.imputation_time
+        self.f_imputation_time.write(struct.pack('f', step_time))
         self.imputation_time = current_time
 
         return step_time
 
     def log_memory_usage(self):
-        """Log the memory usage."""
+        """Log the memory usage.
+
+        :return: True
+        """
 
         # Todo
         self.f_memory_usage.write()
-        return
+
+        return True
 
     def log_energy_consumption(self):
-        """Log the energy consumption."""
+        """Log the energy consumption.
+
+        :return: True
+        """
 
         # Todo
         self.f_energy_consumption.write()
-        return
+
+        return True
 
     def log_sparsity(self, G_W1_sparsity, G_W2_sparsity, G_W3_sparsity, D_W1_sparsity, D_W2_sparsity, D_W3_sparsity):
         """Log the sparsity.
@@ -253,6 +268,8 @@ class Monitor:
         :param D_W1_sparsity: the sparsity of the first layer of the Discriminator
         :param D_W2_sparsity: the sparsity of the second layer of the Discriminator
         :param D_W3_sparsity: the sparsity of the third layer of the Discriminator
+
+        :return: True
         """
 
         # Todo
@@ -267,16 +284,19 @@ class Monitor:
         self.f_sparsity_D_W2.write()
         self.f_sparsity_D_W3.write()
 
-        return
+        return True
 
     def log_flops(self):
-        """Log the FLOPs."""
+        """Log the FLOPs.
+
+        :return: True
+        """
 
         # Todo
         self.f_FLOPs_G.write()
         self.f_FLOPs_D.write()
 
-        return
+        return True
 
     def log_loss(self, loss_G, loss_D, loss_MSE):
         """Log the loss.
@@ -288,25 +308,40 @@ class Monitor:
         :return: True
         """
 
-        self.f_loss_G.write(f'{loss_G}\n')
-        self.f_loss_D.write(f'{loss_D}\n')
-        self.f_loss_MSE.write(f'{loss_MSE}\n')
+        self.f_loss_G.write(struct.pack('f', loss_G))
+        self.f_loss_D.write(struct.pack('f', loss_D))
+        self.f_loss_MSE.write(struct.pack('f', loss_MSE))
 
         return True
 
-    def log_all(self):
-        """Log the all monitors."""
+    def log_all(self, imputed_data, G_W1_sparsity, G_W2_sparsity, G_W3_sparsity, D_W1_sparsity, D_W2_sparsity,
+                D_W3_sparsity, loss_G, loss_D, loss_MSE):
+        """Log the all monitors.
+
+        :param imputed_data: The imputed data
+        :param G_W1_sparsity: the sparsity of the first layer of the Generator
+        :param G_W2_sparsity: the sparsity of the second layer of the Generator
+        :param G_W3_sparsity: the sparsity of the third layer of the Generator
+        :param D_W1_sparsity: the sparsity of the first layer of the Discriminator
+        :param D_W2_sparsity: the sparsity of the second layer of the Discriminator
+        :param D_W3_sparsity: the sparsity of the third layer of the Discriminator
+        :param loss_G: the loss of the generator (cross entropy)
+        :param loss_D: the loss of the discriminator (cross entropy)
+        :param loss_MSE: the loss (MSE)
+
+        :return: True
+        """
 
         # Todo
-        self.log_rmse()
+        self.log_rmse(imputed_data)
         self.log_imputation_time()
         self.log_memory_usage()
         self.log_energy_consumption()
-        self.log_sparsity()
+        self.log_sparsity(G_W1_sparsity, G_W2_sparsity, G_W3_sparsity, D_W1_sparsity, D_W2_sparsity, D_W3_sparsity)
         self.log_flops()
-        self.log_loss()
+        self.log_loss(loss_G, loss_D, loss_MSE)
 
-        return
+        return True
 
     # Stop monitors
     def stop_rmse_monitor(self):
@@ -443,9 +478,66 @@ class Monitor:
 
         if self.verbose: print('Saving logs...')
 
+        # Open the log files
+        self.f_RMSE = open(f'{self.directory}/RMSE.bin', 'rb')
+        self.f_imputation_time = open(f'{self.directory}/imputation_time.bin', 'rb')
+        self.f_memory_usage = open(f'{self.directory}/memory_usage.bin', 'rb')
+        self.f_energy_consumption = open(f'{self.directory}/energy_consumption.bin', 'rb')
+        self.f_sparsity_G = open(f'{self.directory}/sparsity_G.bin', 'rb')
+        self.f_sparsity_G_W1 = open(f'{self.directory}/sparsity_G_W1.bin', 'rb')
+        self.f_sparsity_G_W2 = open(f'{self.directory}/sparsity_G_W2.bin', 'rb')
+        self.f_sparsity_G_W3 = open(f'{self.directory}/sparsity_G_W3.bin', 'rb')
+        self.f_sparsity_D = open(f'{self.directory}/sparsity_D.bin', 'rb')
+        self.f_sparsity_D_W1 = open(f'{self.directory}/sparsity_D_W1.bin', 'rb')
+        self.f_sparsity_D_W2 = open(f'{self.directory}/sparsity_D_W2.bin', 'rb')
+        self.f_sparsity_D_W3 = open(f'{self.directory}/sparsity_D_W3.bin', 'rb')
+        self.f_flops_G = open(f'{self.directory}/flops_G.bin', 'rb')
+        self.f_FLOPs_D = open(f'{self.directory}/flops_D.bin', 'rb')
+        self.f_loss_G = open(f'{self.directory}/loss_G.bin', 'rb')
+        self.f_loss_D = open(f'{self.directory}/loss_D.bin', 'rb')
+        self.f_loss_MSE = open(f'{self.directory}/loss_MSE.bin', 'rb')
+
         # Read the log files
-        RMSE = [np.loadtxt(f'{self.directory}/rmse.csv').tolist()]
-        imputation_time = np.loadtxt(f'{self.directory}/imputation_time.csv').tolist()
+        RMSE = self.f_RMSE.read()
+        imputation_time = self.f_imputation_time.read()
+        memory_usage = self.f_memory_usage.read()
+        energy_consumption = self.f_energy_consumption.read()
+        sparsity_G = self.f_sparsity_G.read()
+        sparsity_G_W1 = self.f_sparsity_G_W1.read()
+        sparsity_G_W2 = self.f_sparsity_G_W2.read()
+        sparsity_G_W3 = self.f_sparsity_G_W3.read()
+        sparsity_D = self.f_sparsity_D.read()
+        sparsity_D_W1 = self.f_sparsity_D_W1.read()
+        sparsity_D_W2 = self.f_sparsity_D_W2.read()
+        sparsity_D_W3 = self.f_sparsity_D_W3.read()
+        FLOPs_G = self.f_flops_G.read()
+        FLOPs_D = self.f_FLOPs_D.read()
+        loss_G = self.f_loss_G.read()
+        loss_D = self.f_loss_D.read()
+        loss_MSE = self.f_loss_MSE.read()
+
+        # Close the log files
+        self.f_RMSE.close()
+        self.f_imputation_time.close()
+        self.f_memory_usage.close()
+        self.f_energy_consumption.close()
+        self.f_sparsity_G.close()
+        self.f_sparsity_G_W1.close()
+        self.f_sparsity_G_W2.close()
+        self.f_sparsity_G_W3.close()
+        self.f_sparsity_D.close()
+        self.f_sparsity_D_W1.close()
+        self.f_sparsity_D_W2.close()
+        self.f_sparsity_D_W3.close()
+        self.f_flops_G.close()
+        self.f_FLOPs_D.close()
+        self.f_loss_G.close()
+        self.f_loss_D.close()
+        self.f_loss_MSE.close()
+
+        # Unpack log files Todo implement unimplemented
+        RMSE = list(struct.unpack('<%df' % (len(RMSE) // 4), RMSE))
+        imputation_time = list(struct.unpack('<%df' % (len(imputation_time) // 4), imputation_time))
         memory_usage = [0]
         energy_consumption = []
         sparsity_G = [None]
@@ -458,9 +550,9 @@ class Monitor:
         sparsity_D_W3 = [None]
         FLOPs_G = []
         FLOPs_D = []
-        loss_G = np.loadtxt(f'{self.directory}/loss_G.csv').tolist()
-        loss_D = np.loadtxt(f'{self.directory}/loss_D.csv').tolist()
-        loss_MSE = np.loadtxt(f'{self.directory}/loss_MSE.csv').tolist()
+        loss_G = list(struct.unpack('<%df' % (len(loss_G) // 4), loss_G))
+        loss_D = list(struct.unpack('<%df' % (len(loss_D) // 4), loss_D))
+        loss_MSE = list(struct.unpack('<%df' % (len(loss_MSE) // 4), loss_MSE))
 
         # Todo totals
         sparsity = [None]

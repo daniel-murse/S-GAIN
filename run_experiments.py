@@ -18,8 +18,8 @@
 """
 
 import os
+import struct
 
-import numpy as np
 import pandas as pd
 
 from time import time
@@ -59,7 +59,7 @@ output_folder = 'output'  # Default: 'output'
 n_runs = 5
 ignore_existing_files = False  # Default: False
 retry_failed_experiments = True  # Default: True
-loop_until_complete = True  # Only works when retry_failed_experiments = True and ignore_existing_files = False.
+loop_until_complete = True  # Only works when retry_failed_experiments = True and ignore_existing_files = False
 verbose = True  # Default: True
 no_log = False  # Default: False
 no_graph = False  # Default: False
@@ -103,7 +103,10 @@ if __name__ == '__main__':
             os.system(experiment)
 
             # Increase counter
-            rmse = np.loadtxt('temp/rmse')
+            f_rmse = open('temp/rmse.bin', 'rb')
+            rmse = f_rmse.read()
+            rmse = list(struct.unpack('<%df' % (len(rmse) // 4), rmse))
+            f_rmse.close()
             if ignore_existing_files or not retry_failed_experiments or pd.notna(rmse): i += 1
 
             # Report progress
