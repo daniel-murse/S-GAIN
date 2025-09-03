@@ -229,6 +229,8 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     D_loss = D_loss_temp
     G_loss = G_loss_temp + alpha * MSE_loss
 
+    if monitor: monitor.log_loss(np.nan, np.nan, np.nan)
+
     # -- S-GAIN solver ------------------------------------------------------------------------------------------------
 
     D_solver = tf.train.AdamOptimizer().minimize(D_loss, var_list=theta_D)
@@ -241,7 +243,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     for it in tqdm(range(iterations)):
-        if monitor is not None: monitor.log_imputation_time()
+        if monitor: monitor.log_imputation_time()
 
         # Sample batch
         batch_idx = sample_batch_index(no, batch_size)
@@ -262,7 +264,9 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         _, G_loss_curr, MSE_loss_curr = sess.run([G_solver, G_loss_temp, MSE_loss],
                                                  feed_dict={X: X_mb, M: M_mb, H: H_mb})
 
-    if monitor is not None: monitor.log_imputation_time()
+        if monitor: monitor.log_loss(G_loss_curr, D_loss_curr, MSE_loss_curr)
+
+    if monitor: monitor.log_imputation_time()
     if verbose: print('Finished training.')
 
     # Return the imputed data
@@ -290,7 +294,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         imputed_data_x = np.reshape(imputed_data_x, shape)
 
     # Stop monitor
-    if monitor is not None:
+    if monitor:
         monitor.log_imputation_time()
         monitor.log_rmse(imputed_data_x)
         monitor.stop_all_monitors()

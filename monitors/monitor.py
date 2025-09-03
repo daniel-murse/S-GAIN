@@ -14,8 +14,8 @@
 
 """Monitor class for S-GAIN:
 
-Todo: cross entropy
 Todo: run in separate thread
+Todo: replace csv with byte/word files (np.loadtxt runs out of memory for the loss logs)
 
 (1) init_monitors: initialize the temporary folder
 (2) start_imputation_time_monitor: open the imputation time log file
@@ -88,7 +88,7 @@ class Monitor:
         self.f_sparsity_G, self.f_sparsity_G_W1, self.f_sparsity_G_W2, self.f_sparsity_G_W3 = [None] * 4
         self.f_sparsity_D, self.f_sparsity_D_W1, self.f_sparsity_D_W2, self.f_sparsity_D_W3 = [None] * 4
         self.f_FLOPs_G, self.f_FLOPs_D = [None] * 2
-        self.f_loss_G, self.f_loss_D = [None] * 2
+        self.f_loss_G, self.f_loss_D, self.f_loss_MSE = [None] * 3
 
         # Model
         self.G_W1, self.G_W2, self.G_W3, self.G_b1, self.G_b2, self.G_b3 = [None] * 6
@@ -182,7 +182,8 @@ class Monitor:
 
         self.f_loss_G = open(f'{self.directory}/loss_G.csv', 'a')
         self.f_loss_D = open(f'{self.directory}/loss_D.csv', 'a')
-        # if self.verbose: print('Monitoring loss...')
+        self.f_loss_MSE = open(f'{self.directory}/loss_MSE.csv', 'a')
+        if self.verbose: print('Monitoring loss...')
         return True
 
     def start_all_monitors(self):
@@ -226,6 +227,7 @@ class Monitor:
         step_time = round(current_time - self.imputation_time, 3)
         self.f_imputation_time.write(f'{step_time}\n')
         self.imputation_time = current_time
+
         return step_time
 
     def log_memory_usage(self):
@@ -276,14 +278,21 @@ class Monitor:
 
         return
 
-    def log_loss(self):
-        """Log the loss."""
+    def log_loss(self, loss_G, loss_D, loss_MSE):
+        """Log the loss.
 
-        # Todo
-        self.f_loss_G.write()
-        self.f_loss_D.write()
+        :param loss_G: the loss of the generator (cross entropy)
+        :param loss_D: the loss of the discriminator (cross entropy)
+        :param loss_MSE: the loss (MSE)
 
-        return
+        :return: True
+        """
+
+        self.f_loss_G.write(f'{loss_G}\n')
+        self.f_loss_D.write(f'{loss_D}\n')
+        self.f_loss_MSE.write(f'{loss_MSE}\n')
+
+        return True
 
     def log_all(self):
         """Log the all monitors."""
@@ -383,8 +392,9 @@ class Monitor:
 
         self.f_loss_G.close()
         self.f_loss_D.close()
+        self.f_loss_MSE.close()
 
-        # if self.verbose: print('Stopped monitoring loss.')
+        if self.verbose: print('Stopped monitoring loss (cross entropy and MSE).')
         return False
 
     def stop_all_monitors(self):
@@ -426,9 +436,9 @@ class Monitor:
         - FLOPs: the FLOPs log (total)
         - FLOPs_G: the FLOPs log for the generator
         - FLOPs_D: the FLOPs log for the discriminator
-        - loss: the loss log (total)
-        - loss_G: the loss log for the generator
-        - loss_D: the loss log for the discriminator
+        - loss_G: the loss log for the generator (cross entropy)
+        - loss_D: the loss log for the discriminator (cross entropy)
+        - loss_MSE: the loss log (MSE)
         """
 
         if self.verbose: print('Saving logs...')
@@ -448,13 +458,13 @@ class Monitor:
         sparsity_D_W3 = [None]
         FLOPs_G = []
         FLOPs_D = []
-        loss_G = [None]
-        loss_D = [None]
+        loss_G = np.loadtxt(f'{self.directory}/loss_G.csv').tolist()
+        loss_D = np.loadtxt(f'{self.directory}/loss_D.csv').tolist()
+        loss_MSE = np.loadtxt(f'{self.directory}/loss_MSE.csv').tolist()
 
         # Todo totals
         sparsity = [None]
         FLOPs = [0]
-        loss = [None]
 
         logs = {}
         if self.experiment is not None:
@@ -555,18 +565,22 @@ class Monitor:
                 }
             },
             'loss': {
-                'initial': loss[0],
-                'final': loss[-1],
-                'log': loss,
-                'generator': {
-                    'initial': loss[0],
-                    'total': loss_G[-1],
-                    'log': loss_G
+                'cross_entropy': {
+                    'generator': {
+                        'initial': loss_G[0],
+                        'total': loss_G[-1],
+                        'log': loss_G
+                    },
+                    'discriminator': {
+                        'initial': loss_D[0],
+                        'final': loss_D[-1],
+                        'log': loss_D
+                    }
                 },
-                'discriminator': {
-                    'initial': loss[0],
-                    'final': loss[-1],
-                    'log': loss_D
+                'MSE': {
+                    'initial': loss_MSE[0],
+                    'final': loss_MSE[-1],
+                    'log': loss_MSE
                 }
             }
         })
@@ -577,7 +591,7 @@ class Monitor:
 
         return RMSE, imputation_time, memory_usage, energy_consumption, sparsity, sparsity_G, sparsity_G_W1, \
             sparsity_G_W2, sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
-            FLOPs_D, loss, loss_G, loss_D
+            FLOPs_D, loss_G, loss_D, loss_MSE
 
     def set_model(self, theta_G, theta_D):
         """Set the (trained) model, so it can be saved later.

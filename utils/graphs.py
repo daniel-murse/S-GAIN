@@ -24,6 +24,8 @@
 (8) plot_all: plot all graphs
 """
 
+from datetime import timedelta
+
 import matplotlib.pyplot as plt
 
 
@@ -55,16 +57,15 @@ def plot_imputation_time(filepath, log):
 
     # New plot
     plt.figure(figsize=(12.8, 4.8))
-    total = sum(log)
-    total_h, total_m, total_s = total // 3600, (total % 3600) // 60, total % 60
-
-    plt.plot(log, label=f'{sum(log):.1f} s')  # todo format hh:mm:ss.ms / hh h mm m ss s ms ms
+    plt.plot(log, label=f'{timedelta(seconds=round(sum(log)))}')
+    len_log = len(log)
 
     # Plot parameters
     plt.title('Imputation time per epoch')
-    plt.ylabel('time (in seconds)')
-    plt.xlabel('epoch')
+    plt.ylabel('Time (in seconds)')
+    plt.xlabel('Epoch')
     plt.legend(title='Total')
+    plt.xlim(-len_log * 0.01, len_log * 1.01)
 
     # Save plot
     plt.savefig(filepath, format='png')
@@ -156,24 +157,41 @@ def plot_flops(filepath, log, log_G, log_D):
     plt.savefig(filepath, format='png')
 
 
-def plot_loss(filepath, log, log_G, log_D):
+def plot_loss(filepath, log_G, log_D, log_MSE):
     """Load and plot the loss.
 
     :param filepath: the filepath for the loss graph
-    :param log: the loss log for S-GAIN (total)
-    :param log_G: the loss log for the Generator
-    :param log_D: the loss log for the Discriminator
+    :param log_G: the loss log for the Generator (cross entropy)
+    :param log_D: the loss log for the Discriminator (cross entropy)
+    :param log_MSE: the loss log (MSE)
     """
 
-    # Plot parameters
-    plt.figure(figsize=(12.8, 4.8))
-    plt.title('Loss per epoch')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(title='Final')
+    # New plot
+    fig, (ax_ce, ax_mse) = plt.subplots(2, figsize=(12.8, 9.6))
+    ax_ce.plot(log_G, label='Generator loss')
+    ax_ce.plot(log_D, label='Discriminator loss')
+    ax_mse.plot(log_MSE, label='MSE')
 
-    # Todo: plot the graph (use the legend to display the final, total, G, D)
+    len_logs  = max(len(log_G), len(log_D), len(log_MSE))
 
+    # Cross Entropy parameters
+    ax_ce.title.set_text('Learning curves')
+    ax_ce.set_ylabel('Cross Entropy')
+    ax_ce.set_xlabel('Epoch')
+
+    ax_ce.set_xlim(-len_logs * 0.01, len_logs * 1.01)
+    ax_ce.legend()
+    ax_ce.grid(True)
+
+    # MSE parameters
+    ax_mse.title.set_text('Learning curves')
+    ax_mse.set_ylabel('MSE loss')
+    ax_mse.set_xlabel('Epoch')
+    ax_mse.set_xlim(-len_logs * 0.01, len_logs * 1.01)
+    ax_mse.legend()
+    ax_mse.grid(True)
+
+    # Save plot
     plt.savefig(filepath, format='png')
 
 
@@ -195,7 +213,7 @@ def plot_all(filepath_rmse, filepath_imputation_time, filepath_memory_usage, fil
     log_rmse, log_imputation_time, log_memory_usage, log_energy_consumption, log_sparsity, \
         log_sparsity_G, log_sparsity_G_W1, log_sparsity_G_W2, log_sparsity_G_W3, \
         log_sparsity_D, log_sparsity_D_W1, log_sparsity_D_W2, log_sparsity_D_W3, \
-        log_flops, log_flops_G, log_flops_D, log_loss, log_loss_G, log_loss_D = logs
+        log_flops, log_flops_G, log_flops_D, log_loss_G, log_loss_D, log_loss_MSE = logs
 
     # Plot all the logs
     # plot_rmse(filepath_rmse, log_rmse)
@@ -205,4 +223,4 @@ def plot_all(filepath_rmse, filepath_imputation_time, filepath_memory_usage, fil
     # plot_sparsity(filepath_sparsity, log_sparsity, log_sparsity_G, log_sparsity_G_W1, log_sparsity_G_W2,
     #               log_sparsity_G_W3, log_sparsity_D, log_sparsity_D_W1, log_sparsity_D_W2, log_sparsity_D_W3)
     # plot_flops(filepath_flops, log_flops, log_flops_G, log_flops_D)
-    # plot_loss(filepath_loss, log_loss, log_loss_G, log_loss_D)
+    plot_loss(filepath_loss, log_loss_G, log_loss_D, log_loss_MSE)

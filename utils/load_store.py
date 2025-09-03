@@ -240,9 +240,9 @@ def parse_log(filepath_log):
     - FLOPs: the FLOPs log (total)
     - FLOPs_G: the FLOPs log for the generator
     - FLOPs_D: the FLOPs log for the discriminator
-    - loss: the loss log (total)
-    - loss_G: the loss log for the generator
-    - loss_D: the loss log for the discriminator
+    - loss_G: the loss log for the generator (cross entropy)
+    - loss_D: the loss log for the discriminator (cross entropy)
+    - loss_MSE: the los log (MSE)
     """
 
     # Read the log file
@@ -267,13 +267,13 @@ def parse_log(filepath_log):
     FLOPs = log['flops']['log']
     FLOPs_G = log['flops']['generator']['log']
     FLOPs_D = log['flops']['discriminator']['log']
-    loss = log['loss']['log']
-    loss_G = log['loss']['generator']['log']
-    loss_D = log['loss']['discriminator']['log']
+    loss_G = log['loss']['cross_entropy']['generator']['log']
+    loss_D = log['loss']['cross_entropy']['discriminator']['log']
+    loss_MSE = log['loss']['MSE']['log']
 
     return RMSE, imputation_time, memory_usage, energy_consumption, sparsity, sparsity_G, sparsity_G_W1, \
         sparsity_G_W2,  sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
-        FLOPs_D, loss, loss_G, loss_D
+        FLOPs_D, loss_G, loss_D, loss_MSE
 
 
 def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None, batch_sizes=None, hint_rates=None,
