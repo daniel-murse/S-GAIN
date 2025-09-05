@@ -18,14 +18,13 @@
 """
 
 import os
-import struct
 
 import pandas as pd
 
 from time import time
 from datetime import timedelta
 
-from utils.load_store import get_experiments
+from utils.load_store import get_experiments, read_bin
 
 # # Settings used in the Sparse GAIN paper
 # datasets = ['spam', 'letter', 'health', 'fashion_mnist']
@@ -103,10 +102,7 @@ if __name__ == '__main__':
             os.system(experiment)
 
             # Increase counter
-            f_rmse = open('temp/rmse.bin', 'rb')
-            rmse = f_rmse.read()
-            rmse = list(struct.unpack('<%df' % (len(rmse) // 4), rmse))
-            f_rmse.close()
+            rmse = read_bin('temp/rmse.bin')[-1]
             if ignore_existing_files or not retry_failed_experiments or pd.notna(rmse): i += 1
 
             # Report progress

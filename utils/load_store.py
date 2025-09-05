@@ -20,9 +20,11 @@
 (4) parse_files: parse the output files to a pandas dataframe
 (5) parse_log: parse the log file to a list
 (6) get_experiments: get a dictionary (or a list of strings) of the experiments to run
+(7) read_bin: read a (temporary) binary file
 """
 
 import json
+import struct
 
 import pandas as pd
 
@@ -423,3 +425,23 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
         return commands
 
     return experiments
+
+
+def read_bin(filepath):
+    """Read a (temporary) binary file.
+
+    :param filepath: the filepath
+
+    :return: the unpacked data from the file
+    """
+
+    # Read binary data
+    file = open(filepath, 'rb')
+    data = file.read()
+    file.close()
+
+    # Unpack the data
+    fmt = '<%df' % (len(data) // 4)
+    data = list(struct.unpack(fmt, data))
+
+    return data

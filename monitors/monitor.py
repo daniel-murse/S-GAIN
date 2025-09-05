@@ -47,14 +47,13 @@ Todo: run in separate thread
 """
 
 import json
-import struct
 
 from os import makedirs
 from os.path import isdir
 from shutil import rmtree
 from time import time
 
-from utils.load_store import parse_experiment
+from utils.load_store import parse_experiment, read_bin
 from utils.metrics import get_rmse
 
 
@@ -478,81 +477,24 @@ class Monitor:
 
         if self.verbose: print('Saving logs...')
 
-        # Open the log files
-        self.f_RMSE = open(f'{self.directory}/RMSE.bin', 'rb')
-        self.f_imputation_time = open(f'{self.directory}/imputation_time.bin', 'rb')
-        self.f_memory_usage = open(f'{self.directory}/memory_usage.bin', 'rb')
-        self.f_energy_consumption = open(f'{self.directory}/energy_consumption.bin', 'rb')
-        self.f_sparsity_G = open(f'{self.directory}/sparsity_G.bin', 'rb')
-        self.f_sparsity_G_W1 = open(f'{self.directory}/sparsity_G_W1.bin', 'rb')
-        self.f_sparsity_G_W2 = open(f'{self.directory}/sparsity_G_W2.bin', 'rb')
-        self.f_sparsity_G_W3 = open(f'{self.directory}/sparsity_G_W3.bin', 'rb')
-        self.f_sparsity_D = open(f'{self.directory}/sparsity_D.bin', 'rb')
-        self.f_sparsity_D_W1 = open(f'{self.directory}/sparsity_D_W1.bin', 'rb')
-        self.f_sparsity_D_W2 = open(f'{self.directory}/sparsity_D_W2.bin', 'rb')
-        self.f_sparsity_D_W3 = open(f'{self.directory}/sparsity_D_W3.bin', 'rb')
-        self.f_flops_G = open(f'{self.directory}/flops_G.bin', 'rb')
-        self.f_FLOPs_D = open(f'{self.directory}/flops_D.bin', 'rb')
-        self.f_loss_G = open(f'{self.directory}/loss_G.bin', 'rb')
-        self.f_loss_D = open(f'{self.directory}/loss_D.bin', 'rb')
-        self.f_loss_MSE = open(f'{self.directory}/loss_MSE.bin', 'rb')
-
         # Read the log files
-        RMSE = self.f_RMSE.read()
-        imputation_time = self.f_imputation_time.read()
-        memory_usage = self.f_memory_usage.read()
-        energy_consumption = self.f_energy_consumption.read()
-        sparsity_G = self.f_sparsity_G.read()
-        sparsity_G_W1 = self.f_sparsity_G_W1.read()
-        sparsity_G_W2 = self.f_sparsity_G_W2.read()
-        sparsity_G_W3 = self.f_sparsity_G_W3.read()
-        sparsity_D = self.f_sparsity_D.read()
-        sparsity_D_W1 = self.f_sparsity_D_W1.read()
-        sparsity_D_W2 = self.f_sparsity_D_W2.read()
-        sparsity_D_W3 = self.f_sparsity_D_W3.read()
-        FLOPs_G = self.f_flops_G.read()
-        FLOPs_D = self.f_FLOPs_D.read()
-        loss_G = self.f_loss_G.read()
-        loss_D = self.f_loss_D.read()
-        loss_MSE = self.f_loss_MSE.read()
-
-        # Close the log files
-        self.f_RMSE.close()
-        self.f_imputation_time.close()
-        self.f_memory_usage.close()
-        self.f_energy_consumption.close()
-        self.f_sparsity_G.close()
-        self.f_sparsity_G_W1.close()
-        self.f_sparsity_G_W2.close()
-        self.f_sparsity_G_W3.close()
-        self.f_sparsity_D.close()
-        self.f_sparsity_D_W1.close()
-        self.f_sparsity_D_W2.close()
-        self.f_sparsity_D_W3.close()
-        self.f_flops_G.close()
-        self.f_FLOPs_D.close()
-        self.f_loss_G.close()
-        self.f_loss_D.close()
-        self.f_loss_MSE.close()
-
-        # Unpack log files Todo implement unimplemented
-        RMSE = list(struct.unpack('<%df' % (len(RMSE) // 4), RMSE))
-        imputation_time = list(struct.unpack('<%df' % (len(imputation_time) // 4), imputation_time))
-        memory_usage = [0]
-        energy_consumption = []
-        sparsity_G = [None]
-        sparsity_G_W1 = [None]
-        sparsity_G_W2 = [None]
-        sparsity_G_W3 = [None]
-        sparsity_D = [None]
-        sparsity_D_W1 = [None]
-        sparsity_D_W2 = [None]
-        sparsity_D_W3 = [None]
-        FLOPs_G = []
-        FLOPs_D = []
-        loss_G = list(struct.unpack('<%df' % (len(loss_G) // 4), loss_G))
-        loss_D = list(struct.unpack('<%df' % (len(loss_D) // 4), loss_D))
-        loss_MSE = list(struct.unpack('<%df' % (len(loss_MSE) // 4), loss_MSE))
+        RMSE = read_bin(f'{self.directory}/RMSE.bin')
+        imputation_time = read_bin(f'{self.directory}/imputation_time.bin')
+        memory_usage = read_bin(f'{self.directory}/memory_usage.bin')
+        energy_consumption = read_bin(f'{self.directory}/energy_consumption.bin')
+        sparsity_G = read_bin(f'{self.directory}/sparsity_G.bin')
+        sparsity_G_W1 = read_bin(f'{self.directory}/sparsity_G_W1.bin')
+        sparsity_G_W2 = read_bin(f'{self.directory}/sparsity_G_W2.bin')
+        sparsity_G_W3 = read_bin(f'{self.directory}/sparsity_G_W3.bin')
+        sparsity_D = read_bin(f'{self.directory}/sparsity_D.bin')
+        sparsity_D_W1 = read_bin(f'{self.directory}/sparsity_D_W1.bin')
+        sparsity_D_W2 = read_bin(f'{self.directory}/sparsity_D_W2.bin')
+        sparsity_D_W3 = read_bin(f'{self.directory}/sparsity_D_W3.bin')
+        FLOPs_G = read_bin(f'{self.directory}/flops_G.bin')
+        FLOPs_D = read_bin(f'{self.directory}/flops_D.bin')
+        loss_G = read_bin(f'{self.directory}/loss_G.bin')
+        loss_D = read_bin(f'{self.directory}/loss_D.bin')
+        loss_MSE = read_bin(f'{self.directory}/loss_MSE.bin')
 
         # Todo totals
         sparsity = [None]
