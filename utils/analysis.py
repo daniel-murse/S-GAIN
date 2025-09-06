@@ -63,18 +63,19 @@ def compile_metrics(experiments, save=None, folder=None, verbose=False):
 
     # Calculate RMSE improvement compared to dense
     dense = exps.loc[(exps['generator_sparsity'] == 0) & (exps['discriminator_sparsity'] == 0)]
-    for d, mr, mm, s, bs, hr, a, i, _, _, _, _, rmse_mean_dense, _, _, _, _ in dense.values:
-        match = exps.loc[(exps['dataset'] == d) & (exps['miss_rate'] == mr) & (exps['miss_modality'] == mm)
-                         & (exps['seed'] == s) & (exps['batch_size'] == bs) & (exps['hint_rate'] == hr)
-                         & (exps['alpha'] == a) & (exps['iterations'] == i)]
-        exps.loc[match.index, 'rmse_improvement'] = 1 / (match['rmse_mean'] / rmse_mean_dense) - 1
-    exps.insert(len(exps.columns) - 4, 'rmse_improvement', exps.pop('rmse_improvement'))  # Move column
+    if not dense.empty:
+        for d, mr, mm, s, bs, hr, a, i, _, _, _, _, rmse_mean_dense, _, _, _, _ in dense.values:
+            match = exps.loc[(exps['dataset'] == d) & (exps['miss_rate'] == mr) & (exps['miss_modality'] == mm)
+                             & (exps['seed'] == s) & (exps['batch_size'] == bs) & (exps['hint_rate'] == hr)
+                             & (exps['alpha'] == a) & (exps['iterations'] == i)]
+            exps.loc[match.index, 'rmse_improvement'] = 1 / (match['rmse_mean'] / rmse_mean_dense) - 1
+        exps.insert(len(exps.columns) - 4, 'rmse_improvement', exps.pop('rmse_improvement'))  # Move column
+        exps['rmse_improvement'] = exps['rmse_improvement'].round(3)  # Rounding
 
     # Rounding
     exps['rmse_mean'] = exps['rmse_mean'].round(4)
     exps['rmse_std'] = exps['rmse_std'].round(7)
     exps['success_rate'] = exps['success_rate'].round(2)
-    exps['rmse_improvement'] = exps['rmse_improvement'].round(3)
 
     # Save the metrics
     if save:
