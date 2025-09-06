@@ -29,6 +29,7 @@ import tensorflow.compat.v1 as tf
 from tqdm import tqdm
 
 from utils.inits_TFv1_FP32 import normal_xavier_init, random_init, erdos_renyi_init, erdos_renyi_random_weights_init
+from utils.metrics import get_sparsity
 from utils.utils import binary_sampler, uniform_sampler, sample_batch_index, normalization, renormalization, rounding
 
 tf.disable_v2_behavior()
@@ -243,7 +244,12 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     for it in tqdm(range(iterations)):
-        if monitor: monitor.log_imputation_time()
+        if monitor:
+            monitor.log_imputation_time()
+
+            G_sparsities = get_sparsity(sess.run(theta_G))
+            D_sparsities = get_sparsity(sess.run(theta_D))
+            monitor.log_sparsity(G_sparsities, D_sparsities)
 
         # Sample batch
         batch_idx = sample_batch_index(no, batch_size)
@@ -266,7 +272,13 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
         if monitor: monitor.log_loss(G_loss_curr, D_loss_curr, MSE_loss_curr)
 
-    if monitor: monitor.log_imputation_time()
+    if monitor:
+        monitor.log_imputation_time()
+
+        G_sparsities = get_sparsity(sess.run(theta_G))
+        D_sparsities = get_sparsity(sess.run(theta_D))
+        monitor.log_sparsity(G_sparsities, D_sparsities)
+
     if verbose: print('Finished training.')
 
     # Return the imputed data

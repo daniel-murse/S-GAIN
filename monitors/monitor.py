@@ -47,6 +47,7 @@ Todo: run in separate thread
 """
 
 import json
+import struct
 
 from os import makedirs
 from os.path import isdir
@@ -162,7 +163,7 @@ class Monitor:
         self.f_sparsity_D_W2 = open(f'{self.directory}/sparsity_D_W2.bin', 'ab')
         self.f_sparsity_D_W3 = open(f'{self.directory}/sparsity_D_W3.bin', 'ab')
 
-        # if self.verbose: print('Monitoring sparsity...')
+        if self.verbose: print('Monitoring sparsity...')
         return True
 
     def start_flops_monitor(self):
@@ -258,30 +259,27 @@ class Monitor:
 
         return True
 
-    def log_sparsity(self, G_W1_sparsity, G_W2_sparsity, G_W3_sparsity, D_W1_sparsity, D_W2_sparsity, D_W3_sparsity):
+    def log_sparsity(self, G_sparsities, D_sparsities):
         """Log the sparsity.
 
-        :param G_W1_sparsity: the sparsity of the first layer of the Generator
-        :param G_W2_sparsity: the sparsity of the second layer of the Generator
-        :param G_W3_sparsity: the sparsity of the third layer of the Generator
-        :param D_W1_sparsity: the sparsity of the first layer of the Discriminator
-        :param D_W2_sparsity: the sparsity of the second layer of the Discriminator
-        :param D_W3_sparsity: the sparsity of the third layer of the Discriminator
+        :param G_sparsities: the sparsities of the Generator [Total, W1, W2, W3]
+        :param D_sparsities: the sparsities of the Discriminator [Total, W1, W2, W3]
 
         :return: True
         """
 
-        # Todo
+        G_sparsity, G_W1_sparsity, G_W2_sparsity, G_W3_sparsity = G_sparsities
+        D_sparsity, D_W1_sparsity, D_W2_sparsity, D_W3_sparsity = D_sparsities
 
-        self.f_sparsity_G.write()
-        self.f_sparsity_G_W1.write()
-        self.f_sparsity_G_W2.write()
-        self.f_sparsity_G_W3.write()
+        self.f_sparsity_G.write(struct.pack('f', G_sparsity))
+        self.f_sparsity_G_W1.write(struct.pack('f', G_W1_sparsity))
+        self.f_sparsity_G_W2.write(struct.pack('f', G_W2_sparsity))
+        self.f_sparsity_G_W3.write(struct.pack('f', G_W3_sparsity))
 
-        self.f_sparsity_D.write()
-        self.f_sparsity_D_W1.write()
-        self.f_sparsity_D_W2.write()
-        self.f_sparsity_D_W3.write()
+        self.f_sparsity_D.write(struct.pack('f', D_sparsity))
+        self.f_sparsity_D_W1.write(struct.pack('f', D_W1_sparsity))
+        self.f_sparsity_D_W2.write(struct.pack('f', D_W2_sparsity))
+        self.f_sparsity_D_W3.write(struct.pack('f', D_W3_sparsity))
 
         return True
 
@@ -313,17 +311,12 @@ class Monitor:
 
         return True
 
-    def log_all(self, imputed_data, G_W1_sparsity, G_W2_sparsity, G_W3_sparsity, D_W1_sparsity, D_W2_sparsity,
-                D_W3_sparsity, loss_G, loss_D, loss_MSE):
+    def log_all(self, imputed_data, G_sparsities, D_sparsities, loss_G, loss_D, loss_MSE):
         """Log the all monitors.
 
         :param imputed_data: The imputed data
-        :param G_W1_sparsity: the sparsity of the first layer of the Generator
-        :param G_W2_sparsity: the sparsity of the second layer of the Generator
-        :param G_W3_sparsity: the sparsity of the third layer of the Generator
-        :param D_W1_sparsity: the sparsity of the first layer of the Discriminator
-        :param D_W2_sparsity: the sparsity of the second layer of the Discriminator
-        :param D_W3_sparsity: the sparsity of the third layer of the Discriminator
+        :param G_sparsities: the sparsities of the Generator [Total, W1, W2, W3]
+        :param D_sparsities: the sparsities of the Discriminator [Total, W1, W2, W3]
         :param loss_G: the loss of the generator (cross entropy)
         :param loss_D: the loss of the discriminator (cross entropy)
         :param loss_MSE: the loss (MSE)
@@ -336,7 +329,7 @@ class Monitor:
         self.log_imputation_time()
         self.log_memory_usage()
         self.log_energy_consumption()
-        self.log_sparsity(G_W1_sparsity, G_W2_sparsity, G_W3_sparsity, D_W1_sparsity, D_W2_sparsity, D_W3_sparsity)
+        self.log_sparsity(G_sparsities, D_sparsities)
         self.log_flops()
         self.log_loss(loss_G, loss_D, loss_MSE)
 
@@ -403,7 +396,7 @@ class Monitor:
         self.f_sparsity_D_W2.close()
         self.f_sparsity_D_W3.close()
 
-        # if self.verbose: print('Stopped monitoring sparsity.')
+        if self.verbose: print('Stopped monitoring sparsity.')
         return False
 
     def stop_flops_monitor(self):
@@ -480,8 +473,8 @@ class Monitor:
         # Read the log files
         RMSE = read_bin(f'{self.directory}/RMSE.bin')
         imputation_time = read_bin(f'{self.directory}/imputation_time.bin')
-        memory_usage = read_bin(f'{self.directory}/memory_usage.bin')
-        energy_consumption = read_bin(f'{self.directory}/energy_consumption.bin')
+        memory_usage = [0] #read_bin(f'{self.directory}/memory_usage.bin')
+        energy_consumption = [] #read_bin(f'{self.directory}/energy_consumption.bin')
         sparsity_G = read_bin(f'{self.directory}/sparsity_G.bin')
         sparsity_G_W1 = read_bin(f'{self.directory}/sparsity_G_W1.bin')
         sparsity_G_W2 = read_bin(f'{self.directory}/sparsity_G_W2.bin')
@@ -490,15 +483,15 @@ class Monitor:
         sparsity_D_W1 = read_bin(f'{self.directory}/sparsity_D_W1.bin')
         sparsity_D_W2 = read_bin(f'{self.directory}/sparsity_D_W2.bin')
         sparsity_D_W3 = read_bin(f'{self.directory}/sparsity_D_W3.bin')
-        FLOPs_G = read_bin(f'{self.directory}/flops_G.bin')
-        FLOPs_D = read_bin(f'{self.directory}/flops_D.bin')
+        FLOPs_G = [] #read_bin(f'{self.directory}/flops_G.bin')
+        FLOPs_D = [] #read_bin(f'{self.directory}/flops_D.bin')
         loss_G = read_bin(f'{self.directory}/loss_G.bin')
         loss_D = read_bin(f'{self.directory}/loss_D.bin')
         loss_MSE = read_bin(f'{self.directory}/loss_MSE.bin')
 
-        # Todo totals
-        sparsity = [None]
-        FLOPs = [0]
+        # Totals
+        sparsity = [(sparsity_G[i] + sparsity_D[i]) / 2 for i in range(len(sparsity_G))]
+        FLOPs = [FLOPs_G[i] + FLOPs_D[i] for i in range(len(FLOPs_G))]
 
         logs = {}
         if self.experiment is not None:
