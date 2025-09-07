@@ -24,7 +24,7 @@ from utils.analysis import compile_metrics, plot_rmse, plot_success_rate
 
 
 def main(args):
-    """Plot the graphs.
+    """Compile the metrics and plot the graphs.
 
     :param args:
     - all: plot all graphs

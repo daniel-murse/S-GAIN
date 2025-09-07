@@ -419,8 +419,8 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
             f'--batch_size {batch_size} --hint_rate {hint_rate} --alpha {alpha} --iterations {iterations} '
             f'--generator_sparsity {generator_sparsity} --generator_modality {generator_modality} '
             f'--discriminator_sparsity {discriminator_sparsity} --discriminator_modality {discriminator_modality} '
-            f'--folder {folder} {"--verbose" if verbose else ""}{"--no_log" if no_log else ""}'
-            f'{"--no_graph" if no_graph else ""}{"--no_model" if no_model else ""}{"--no_save" if no_save else ""}'
+            f'--folder {folder} {"--verbose " if verbose else ""}{"--no_log " if no_log else ""}'
+            f'{"--no_graph " if no_graph else ""}{"--no_model " if no_model else ""}{"--no_save" if no_save else ""}'
 
             for [dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity,
             generator_modality, discriminator_sparsity, discriminator_modality], n in experiments.items()

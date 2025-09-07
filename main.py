@@ -15,6 +15,8 @@
 """Main function for S-GAIN."""
 
 import argparse
+import os
+
 import numpy as np
 
 from models.s_gain_TFv1_FP32 import s_gain
@@ -22,8 +24,6 @@ from monitors.monitor import Monitor
 from utils.data_loader import data_loader
 from utils.load_store import get_filepaths, save_imputation
 from utils.metrics import get_rmse
-from utils.graphs import plot_all
-from utils.graphs2 import plot_graphs
 
 
 def main(args):
@@ -48,7 +48,7 @@ def main(args):
     - discriminator_modality: the initialization and pruning and regrowth strategy of the discriminator
     - folder (directory): the folder to save the imputed data to
     - verbose: enable verbose output to console
-    - no_log: turn off the logging of metrics (also disables graphs and model)
+    - no_log: turn off the logging of metrics (also disables graphs)
     - no_graph: don't plot graphs after training
     - no_model: don't save the trained model
     - no_save: don't save the imputation
@@ -125,7 +125,7 @@ def main(args):
     data_x, miss_data_x, data_mask = data_loader(dataset, miss_rate, miss_modality, seed)
 
     # S-GAIN
-    monitor = Monitor(data_x, data_mask, experiment=experiment, verbose=verbose) if not no_log else None
+    monitor = None if no_log and no_model else Monitor(data_x, data_mask, experiment=experiment, verbose=verbose)
     imputed_data_x = s_gain(
         miss_data_x, batch_size=batch_size, hint_rate=hint_rate, alpha=alpha, iterations=iterations,
         generator_sparsity=generator_sparsity, generator_modality=generator_modality,
@@ -147,17 +147,22 @@ def main(args):
         save_imputation(filepath_imputed_data, imputed_data_x)
 
     if not no_log:
-        logs = monitor.save_logs(filepath_log)
+        if verbose: print('Saving logs...')
 
-        if not no_graph:
+        if no_graph:
+            os.system(f'python log_and_graph.py -fpl {filepath_log} -exp {experiment} -ng')
+        else:
             if verbose: print('Plotting graphs...')
-            # plot_all(filepath_rmse, filepath_imputation_time, filepath_energy_consumption, filepath_memory_usage,
-            #          filepath_sparsity, filepath_flops, filepath_loss, logs)
-            plot_graphs(filepath_graphs, logs=logs)
+            os.system(f'python log_and_graph.py -fpl {filepath_log} -fpg {filepath_graphs} -exp {experiment}')
 
-        if not no_model:
-            if verbose: print('Saving (trained) model...')
-            monitor.save_model(filepath_model)
+    else:  # Store data to run log_and_graphs.py later
+        f = open('temp/run_data', 'w')
+        f.write(f'{experiment}\n{filepath_log}\n{filepath_graphs}')
+        f.close()
+
+    if not no_model:
+        if verbose: print('Saving (trained) model...')
+        monitor.save_model(filepath_model)
 
     if verbose: print(f'Finished.')
 
@@ -243,9 +248,9 @@ if __name__ == '__main__':
         '-v', '--verbose',
         help='enable verbose logging',
         action='store_true')
-    parser.add_argument(  # Todo: control per monitor?
+    parser.add_argument(
         '-nl', '--no_log',
-        help='turn off the logging of metrics (also disables graphs and model)',
+        help='turn off the logging of metrics (also disables graphs)',
         action='store_true')
     parser.add_argument(
         '-ng', '--no_graph',

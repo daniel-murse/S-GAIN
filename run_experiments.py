@@ -80,7 +80,7 @@ def update_experiments():
         generator_modalities=generator_modalities, discriminator_sparsities=discriminator_sparsities,
         discriminator_modalities=discriminator_modalities, folder=output_folder, n_runs=n_runs,
         ignore_existing_files=ignore_existing_files, retry_failed_experiments=retry_failed_experiments,
-        verbose=verbose, no_log=no_log, no_graph=no_graph, no_model=no_model, no_save=no_save, get_commands=True
+        verbose=verbose, no_log=True, no_graph=True, no_model=no_model, no_save=no_save, get_commands=True
     )
 
 
@@ -100,6 +100,12 @@ if __name__ == '__main__':
             # Run experiment
             print(experiment)
             os.system(experiment)
+
+            # Compile logs and plot graphs
+            if not no_log:
+                if verbose: print('Saving logs...')
+                if not no_graph and verbose: print('Plotting graphs...')
+                os.system(f'python log_and_graphs.py{" -ng" if no_graph else ""}')
 
             # Increase counter
             rmse = read_bin('temp/rmse.bin')[-1]

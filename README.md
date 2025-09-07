@@ -14,6 +14,9 @@ model in TensorFlow 2.x using Sparse Tensors and INT8 precision, and then run it
 
 We ran our experiments using python 3.11, earlier or later versions might have package conflicts.
 
+Compiling the log and plotting the graphs may not function correctly when called from main.py. It is advised to run
+log_and_compile.py after each experiment.
+
 ---
 
 ## How to run the command
@@ -39,7 +42,7 @@ We ran our experiments using python 3.11, earlier or later versions might have p
 #### 
 - **folder (directory):** save the imputed data to a different folder (optional) [default: output]
 - **verbose:** enable verbose logging
-- **no_log:** turn off the logging of metrics (also disables graphs and model)
+- **no_log:** turn off the logging of metrics (also disables graphs)
 - **no_graph:** don't plot graphs after training
 - **no_model:** don't save the trained model
 - **no_save:** don't save the imputation
@@ -67,6 +70,17 @@ $ python main.py spam --verbose --no_log --no_graph --no_model --no_save
 
 - **imputed_data_x:** the imputed data
 - **rmse:** Root Mean Squared Error
+
+---
+
+### Log and graphs
+
+- **directory:** the directory of the temporary files
+- **no_graph:** don't plot the graphs (log only)
+
+```shell
+$ python log_and_graph.py
+```
 
 ---
 
@@ -136,5 +150,6 @@ $ python analyze.py --all --save --experiments output --analysis analysis
 
 #### 
 - **analyze.py:** This file is used to run the analysis of the experiments.
+- **log_and_graphs.py:** This file is used to compile the temporary files into a single log file and to plot the corresponding graphs.
 - **main.py:** The main file from which the experiments are run.
 - **run_experiments.py:** This file enables running multiple experiments consecutively.

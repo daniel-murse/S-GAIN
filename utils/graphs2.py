@@ -302,7 +302,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
         index += 2
 
     # Plot parameters
-    plt.suptitle('[Experiment]', size=24)
+    plt.suptitle('[Experiment]', size=24)  # Todo
     plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
 
     # Save plot

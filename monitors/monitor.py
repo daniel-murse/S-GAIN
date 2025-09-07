@@ -41,9 +41,8 @@ Todo: run in separate thread
 (23) stop_flops_monitor: close the FLOPs log files
 (24) stop_loss_monitor: close the loss log files
 (25) stop_all_monitors: close all the monitors
-(26) save_logs: compile and save the logs to a json file
-(27) set_model: set the (trained) model, so it can be saved later
-(28) save_model: save the (trained) model to a json file
+(26) set_model: set the (trained) model, so it can be saved later
+(27) save_model: save the (trained) model to a json file
 """
 
 import json
@@ -54,7 +53,6 @@ from os.path import isdir
 from shutil import rmtree
 from time import time
 
-from utils.load_store import parse_experiment, read_bin
 from utils.metrics import get_rmse
 
 
@@ -439,186 +437,6 @@ class Monitor:
 
         if self.verbose: print('Stopped monitors.')
         return False
-
-    # Compile and save the logs
-    def save_logs(self, filepath):
-        """Compile and save the logs to a json file.
-
-        :param filepath: the filepath to save the logs to
-
-        :return:
-        - RMSE: the RMSE log
-        - imputation_time: the imputation time log
-        - memory_usage: the memory usage log
-        - energy_consumption: the energy consumption log
-        - sparsity: the sparsity log (total)
-        - sparsity_G: the sparsity log for the generator
-        - sparsity_G_W1: the sparsity log for the first layer of the generator
-        - sparsity_G_W2: the sparsity log for the second layer of the generator
-        - sparsity_G_W3: the sparsity log for the third layer of the generator
-        - sparsity_D: the sparsity log for the discriminator
-        - sparsity_D_W1: the sparsity log for the first layer of the discriminator
-        - sparsity_D_W2: the sparsity log for the second layer of the discriminator
-        - sparsity_D_W3: the sparsity log for the third layer of the discriminator
-        - FLOPs: the FLOPs log (total)
-        - FLOPs_G: the FLOPs log for the generator
-        - FLOPs_D: the FLOPs log for the discriminator
-        - loss_G: the loss log for the generator (cross entropy)
-        - loss_D: the loss log for the discriminator (cross entropy)
-        - loss_MSE: the loss log (MSE)
-        """
-
-        if self.verbose: print('Saving logs...')
-
-        # Read the log files
-        RMSE = read_bin(f'{self.directory}/RMSE.bin')
-        imputation_time = read_bin(f'{self.directory}/imputation_time.bin')
-        memory_usage = [0] #read_bin(f'{self.directory}/memory_usage.bin')
-        energy_consumption = [] #read_bin(f'{self.directory}/energy_consumption.bin')
-        sparsity_G = read_bin(f'{self.directory}/sparsity_G.bin')
-        sparsity_G_W1 = read_bin(f'{self.directory}/sparsity_G_W1.bin')
-        sparsity_G_W2 = read_bin(f'{self.directory}/sparsity_G_W2.bin')
-        sparsity_G_W3 = read_bin(f'{self.directory}/sparsity_G_W3.bin')
-        sparsity_D = read_bin(f'{self.directory}/sparsity_D.bin')
-        sparsity_D_W1 = read_bin(f'{self.directory}/sparsity_D_W1.bin')
-        sparsity_D_W2 = read_bin(f'{self.directory}/sparsity_D_W2.bin')
-        sparsity_D_W3 = read_bin(f'{self.directory}/sparsity_D_W3.bin')
-        FLOPs_G = [] #read_bin(f'{self.directory}/flops_G.bin')
-        FLOPs_D = [] #read_bin(f'{self.directory}/flops_D.bin')
-        loss_G = read_bin(f'{self.directory}/loss_G.bin')
-        loss_D = read_bin(f'{self.directory}/loss_D.bin')
-        loss_MSE = read_bin(f'{self.directory}/loss_MSE.bin')
-
-        # Totals
-        sparsity = [(sparsity_G[i] + sparsity_D[i]) / 2 for i in range(len(sparsity_G))]
-        FLOPs = [FLOPs_G[i] + FLOPs_D[i] for i in range(len(FLOPs_G))]
-
-        logs = {}
-        if self.experiment is not None:
-            dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity, \
-                generator_modality, discriminator_sparsity, discriminator_modality \
-                = parse_experiment(self.experiment, file=False)
-
-            logs.update({
-                'experiment': {
-                    'dataset': dataset,
-                    'miss_rate': miss_rate,
-                    'miss_modality': miss_modality,
-                    'seed': seed,
-                    'batch_size': batch_size,
-                    'hint_rate': hint_rate,
-                    'alpha': alpha,
-                    'iterations': iterations,
-                    'generator_sparsity': generator_sparsity,
-                    'generator_modality': generator_modality,
-                    'discriminator_sparsity': discriminator_sparsity,
-                    'discriminator_modality': discriminator_modality
-                }
-            })
-
-        logs.update({
-            'rmse': {
-                'final': RMSE[-1],
-                'log': RMSE,
-            },
-            'imputation_time': {
-                'total': sum(imputation_time),
-                'log': imputation_time
-            },
-            'memory_usage': {
-                'maximum': max(memory_usage),
-                'average': sum(memory_usage) / len(memory_usage),
-                'log': memory_usage
-            },
-            'energy_consumption': {
-                'total': sum(energy_consumption),
-                'log': energy_consumption
-            },
-            'sparsity': {
-                'initial': sparsity[0],
-                'final': sparsity[-1],
-                'log': sparsity,
-                'generator': {
-                    'initial': sparsity_G[0],
-                    'final': sparsity_G[-1],
-                    'log': sparsity_G,
-                    'G_W1': {
-                        'initial': sparsity_G_W1[0],
-                        'final': sparsity_G_W1[-1],
-                        'log': sparsity_G_W1
-                    },
-                    'G_W2': {
-                        'initial': sparsity_G_W2[0],
-                        'final': sparsity_G_W2[-1],
-                        'log': sparsity_G_W2
-                    },
-                    'G_W3': {
-                        'initial': sparsity_G_W3[0],
-                        'final': sparsity_G_W3[-1],
-                        'log': sparsity_G_W3
-                    }
-                },
-                'discriminator': {
-                    'initial': sparsity_D[0],
-                    'final': sparsity_D[-1],
-                    'log': sparsity_D,
-                    'D_W1': {
-                        'initial': sparsity_D_W1[0],
-                        'final': sparsity_D_W1[-1],
-                        'log': sparsity_D_W1
-                    },
-                    'D_W2': {
-                        'initial': sparsity_D_W2[0],
-                        'final': sparsity_D_W2[-1],
-                        'log': sparsity_D_W2
-                    },
-                    'D_W3': {
-                        'initial': sparsity_D_W3[0],
-                        'final': sparsity_D_W3[-1],
-                        'log': sparsity_D_W3
-                    }
-                }
-            },
-            'flops': {
-                'total': sum(FLOPs),
-                'log': FLOPs,
-                'generator': {
-                    'total': sum(FLOPs_G),
-                    'log': FLOPs_G
-                },
-                'discriminator': {
-                    'total': sum(FLOPs_D),
-                    'log': FLOPs_D
-                }
-            },
-            'loss': {
-                'cross_entropy': {
-                    'generator': {
-                        'initial': loss_G[0],
-                        'total': loss_G[-1],
-                        'log': loss_G
-                    },
-                    'discriminator': {
-                        'initial': loss_D[0],
-                        'final': loss_D[-1],
-                        'log': loss_D
-                    }
-                },
-                'MSE': {
-                    'initial': loss_MSE[0],
-                    'final': loss_MSE[-1],
-                    'log': loss_MSE
-                }
-            }
-        })
-
-        f_logs = open(filepath, 'w')
-        f_logs.write(json.dumps(logs))
-        f_logs.close()
-
-        return RMSE, imputation_time, memory_usage, energy_consumption, sparsity, sparsity_G, sparsity_G_W1, \
-            sparsity_G_W2, sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
-            FLOPs_D, loss_G, loss_D, loss_MSE
 
     def set_model(self, theta_G, theta_D):
         """Set the (trained) model, so it can be saved later.
