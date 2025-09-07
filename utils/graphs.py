@@ -25,9 +25,9 @@
 """
 
 from datetime import timedelta
+from matplotlib import ticker
 
 import matplotlib.pyplot as plt
-from matplotlib import ticker
 
 
 def plot_rmse(filepath, log):

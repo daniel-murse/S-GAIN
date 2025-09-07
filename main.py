@@ -23,6 +23,7 @@ from utils.data_loader import data_loader
 from utils.load_store import get_filepaths, save_imputation
 from utils.metrics import get_rmse
 from utils.graphs import plot_all
+from utils.graphs2 import plot_graphs
 
 
 def main(args):
@@ -137,7 +138,7 @@ def main(args):
     if verbose: print(f'RMSE: {rmse}')
 
     # Save the imputation, the logs and the (trained) model, and plot the graphs
-    filepath_imputed_data, filepath_log, filepath_model, filepath_rmse, filepath_imputation_time, \
+    filepath_imputed_data, filepath_log, filepath_model, filepath_graphs, filepath_rmse, filepath_imputation_time, \
         filepath_energy_consumption, filepath_memory_usage, filepath_sparsity, filepath_flops, filepath_loss \
         = get_filepaths(folder, experiment, rmse)
 
@@ -150,8 +151,9 @@ def main(args):
 
         if not no_graph:
             if verbose: print('Plotting graphs...')
-            plot_all(filepath_rmse, filepath_imputation_time, filepath_energy_consumption, filepath_memory_usage,
-                     filepath_sparsity, filepath_flops, filepath_loss, logs)
+            # plot_all(filepath_rmse, filepath_imputation_time, filepath_energy_consumption, filepath_memory_usage,
+            #          filepath_sparsity, filepath_flops, filepath_loss, logs)
+            plot_graphs(filepath_graphs, logs=logs)
 
         if not no_model:
             if verbose: print('Saving (trained) model...')

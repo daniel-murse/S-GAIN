@@ -109,6 +109,7 @@ $ python analyze.py --all --save --experiments output --analysis analysis
 - **output/[experiment].csv:** The imputed data for the experiment.
 - **output/[experiment]_energy_consumption.png:** A graph of the energy consumption measured throughout the experiment.
 - **output/[experiment]_FLOPs.png:** A graph of the FLOPs measured throughout the experiment.
+- **output/[experiment]_graphs.png:** A single png file containing all the graphs.
 - **output/[experiment]_imputation_time.png:** A graph of the imputation time measured throughout the experiment.
 - **output/[experiment]_log.json:** A log file of all measurements taken throughout the experiment.
 - **output/[experiment]_loss.png:** A graph of the loss measured throughout the experiment.
@@ -125,7 +126,8 @@ $ python analyze.py --all --save --experiments output --analysis analysis
 - **utils/flops:** Contains code to calculate FLOPs. (copied from Google Research)
 - **utils/analysis.py:** Contains functions to analyze the experiments.
 - **utils/data_loader.py:** Loads the datasets.
-- **utils/graphs.py:** Plot all the relevant graphs.
+- **utils/graphs.py:** The first version of graphs.py: Plot all the relevant graphs to different files.
+- **utils/graphs2.py:** An updated version of graphs.py: Plot all the relevant graphs to the same file.
 - **utils/inits_TFv2_INT8.py:** Contains all the different initialization strategies for the TFv2_INT8 version.
 - **utils/inits_TFv1_FP32.py:** Contains all the different initialization strategies for the TFv1_FP32 version.
 - **utils/load_store.py:** Loads and stores files.

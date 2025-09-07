@@ -17,17 +17,17 @@
 Todo properly name the graphs, legends, labels, etc
 
 (1) compile_metrics: compile the metrics of the provided experiments
-(2) get_sizing: helper function to calculate the different sizes for the plot
-(3) plot_rmse: plot the RMSE of the provided experiments
-(4) plot_success_rate: plot the success rate of the provided experiments
+(2) plot_rmse: plot the RMSE of the provided experiments
+(3) plot_success_rate: plot the success rate of the provided experiments
 """
 
 from os import mkdir
 from os.path import isdir
+from matplotlib import ticker, container
+
+from utils.graphs2 import get_sizing
 
 import matplotlib.pyplot as plt
-
-from matplotlib import ticker, container
 
 # Groupings
 d_mr_mm_s = ['dataset', 'miss_rate', 'miss_modality', 'seed']
@@ -84,58 +84,6 @@ def compile_metrics(experiments, save=None, folder=None, verbose=False):
         exps.to_csv(f'{folder}/metrics.csv', index=False)
 
     return exps
-
-
-def get_sizing(ncols, nrows, ax_width, ax_height):
-    """Calculates the different sizes for the plot.
-
-    :param ncols: the number of columns in the plot
-    :param nrows: the number of rows in the plot
-    :param ax_width: the width of the subplots
-    :param ax_height: the height of the subplots
-
-    :return:
-    - fig_width: total width of the figure
-    - fig_height: total height of the figure
-    - left: left margin of the figure
-    - right: right margin of the figure
-    - top: top margin of the figure
-    - bottom: bottom margin of the figure
-    - wspace: the horizontal padding between two subplots
-    - hspace: the vertical padding between two subplots
-    """
-
-    # Margins (absolute)
-    left_abs = 1.28
-    right_abs = 0.52
-    top_abs = 2
-    bottom_abs = 1
-
-    # Subplots (absolute)
-    ax_width_total = ax_width * ncols
-    ax_height_total = ax_height * nrows
-
-    # Padding (absolute)
-    wspace_abs = 1.28
-    hspace_abs = 1.2
-    wspace_total = wspace_abs * (ncols - 1)
-    hspace_total = hspace_abs * (nrows - 1)
-
-    # Figure (absolute)
-    fig_width = left_abs + ax_width_total + wspace_total + right_abs
-    fig_height = top_abs + ax_height_total + hspace_total + bottom_abs
-
-    # Margins (relative)
-    left = 1 / (fig_width / left_abs)
-    right = 1 - 1 / (fig_width / right_abs)
-    top = 1 - 1 / (fig_height / top_abs)
-    bottom = 1 / (fig_height / bottom_abs)
-
-    # Padding (relative)
-    wspace = wspace_abs / ax_width
-    hspace = hspace_abs / ax_height
-
-    return fig_width, fig_height, left, right, top, bottom, wspace, hspace
 
 
 def plot_rmse(experiments, save=False, folder='analysis', verbose=False):

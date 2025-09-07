@@ -1,0 +1,309 @@
+# coding=utf-8
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Graphing functions for S-GAIN:
+
+(1) get_sizing: helper function to calculate the different sizes for the plot
+(2) plot_graphs: load and plot the graphs (RMSE, imputation time, memory usage, energy_consumption, loss and FLOPs)
+"""
+
+from datetime import timedelta
+from matplotlib import ticker
+
+import matplotlib.pyplot as plt
+
+
+def get_sizing(ncols, nrows, ax_width, ax_height):
+    """Calculates the different sizes for the plot.
+
+    :param ncols: the number of columns in the plot
+    :param nrows: the number of rows in the plot
+    :param ax_width: the width of the subplots
+    :param ax_height: the height of the subplots
+
+    :return:
+    - fig_width: total width of the figure
+    - fig_height: total height of the figure
+    - left: left margin of the figure
+    - right: right margin of the figure
+    - top: top margin of the figure
+    - bottom: bottom margin of the figure
+    - wspace: the horizontal padding between two subplots
+    - hspace: the vertical padding between two subplots
+    """
+
+    # Margins (absolute)
+    left_abs = 1.28
+    right_abs = 0.52
+    top_abs = 2
+    bottom_abs = 1
+
+    # Subplots (absolute)
+    ax_width_total = ax_width * ncols
+    ax_height_total = ax_height * nrows
+
+    # Padding (absolute)
+    wspace_abs = 1.28
+    hspace_abs = 1.2
+    wspace_total = wspace_abs * (ncols - 1)
+    hspace_total = hspace_abs * (nrows - 1)
+
+    # Figure (absolute)
+    fig_width = left_abs + ax_width_total + wspace_total + right_abs
+    fig_height = top_abs + ax_height_total + hspace_total + bottom_abs
+
+    # Margins (relative)
+    left = 1 / (fig_width / left_abs)
+    right = 1 - 1 / (fig_width / right_abs)
+    top = 1 - 1 / (fig_height / top_abs)
+    bottom = 1 / (fig_height / bottom_abs)
+
+    # Padding (relative)
+    wspace = wspace_abs / ax_width
+    hspace = hspace_abs / ax_height
+
+    return fig_width, fig_height, left, right, top, bottom, wspace, hspace
+
+
+def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_log=None, energy_consumption_log=None,
+                sparsity_logs=None, flops_logs=None, loss_logs=None, logs=None):
+    """Load and plot the graphs.
+
+    :param filepath: the filepath for the graphs
+    :param rmse_log: the RMSE log
+    :param imputation_time_log: the imputation time log
+    :param memory_usage_log: the memory usage log
+    :param energy_consumption_log: the energy consumption log
+    :param sparsity_logs: the sparsity logs [S-GAIN, G, G_W1, G_W2, G_W3, D, D_W1, D_W2, D_W3]
+    :param flops_logs: the flops logs [S-GAIN, Generator, Discriminator]
+    :param loss_logs: the loss logs [Generator, Discriminator, MSE]
+    :param logs: a list of all logs (optional)
+    """
+
+    if logs:  # Get all the logs from the list
+        rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log, sparsity_log, \
+            sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log, \
+            sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, sparsity_D_W3_log, \
+            flops_log, flops_G_log, flops_D_log, loss_G_log, loss_D_log, loss_MSE_log = logs
+
+        sparsity_logs = [sparsity_log, sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log,
+                         sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, sparsity_D_W3_log]
+        flops_logs = [flops_log, flops_G_log, flops_D_log]
+        loss_logs = [loss_G_log, loss_D_log, loss_MSE_log]
+
+    # Get nrows required
+    nrows = (1 if rmse_log else 0) + (1 if imputation_time_log else 0) + (1 if memory_usage_log else 0) \
+            + (1 if energy_consumption_log else 0) + (2 if sparsity_logs else 0) + (1 if flops_logs else 0) \
+            + (2 if loss_logs else 0)
+
+    # Stop if no logs are provided
+    if nrows == 0: return
+
+    # New plot
+    width, height, left, right, top, bottom, wspace, hspace = get_sizing(1, nrows, 12.8, 4.8)
+    fig, axs = plt.subplots(nrows, figsize=(width, height))
+
+    index = 0
+    if rmse_log:  # Plot RMSE
+        axs[index].plot(rmse_log)
+        # Todo: plot the graph (use the legend to display the final)
+
+        len_log = len(rmse_log)
+
+        # RMSE parameters
+        axs[index].set_title('RMSE per epoch')
+        axs[index].title.set_size(16)
+        axs[index].set_ylabel('RMSE', size=13)
+        axs[index].set_xlabel('Epochs', size=13)
+        axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index].tick_params(labelsize=12)
+        lgnd = axs[index].legend(fontsize=12)
+        lgnd.set_title(title='Final RMSE', prop={'size': 13})
+        axs[index].grid(True)
+
+        # Increase index
+        index += 1
+
+    if imputation_time_log:  # Plot imputation time
+        label = f'{timedelta(seconds=round(sum(imputation_time_log)))}'
+        axs[index].plot(imputation_time_log, label=label, color='black')
+
+        len_log = len(imputation_time_log)
+
+        # Plot parameters
+        axs[index].set_title('Imputation time per epoch')
+        axs[index].title.set_size(16)
+        axs[index].set_ylabel('Time (in seconds)', size=13)
+        axs[index].set_xlabel('Epochs', size=13)
+        axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index].tick_params(labelsize=12)
+        lgnd = axs[index].legend(fontsize=12)
+        lgnd.set_title(title='Total imputation time', prop={'size': 13})
+        axs[index].grid(True)
+
+        # Increase index
+        index += 1
+
+    if memory_usage_log:  # Plot memory usage
+        axs[index].plot(memory_usage_log)
+        # Todo: plot the graph (use the legend to display the total, avg, min and max)
+
+        len_log = len(memory_usage_log)
+
+        # Plot parameters
+        axs[index].set_title('Memory usage per epoch')
+        axs[index].title.set_size(16)
+        axs[index].set_ylabel('Memory usage (in MB)', size=13)
+        axs[index].set_xlabel('Epochs', size=13)
+        axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index].tick_params(labelsize=12)
+        lgnd = axs[index].legend(fontsize=12)
+        lgnd.set_title(title='Total memory usage', prop={'size': 13})
+        axs[index].grid(True)
+
+        # Increase index
+        index += 1
+
+    if energy_consumption_log:  # Plot energy consumption
+        axs[index].plot(energy_consumption_log)
+        # Todo: plot the graph (use the legend to display the total, avg, min and max)
+
+        len_log = len(energy_consumption_log)
+
+        # Plot parameters
+        axs[index].set_title('Energy consumption per epoch')
+        axs[index].title.set_size(16)
+        axs[index].set_ylabel('Energy consumption (in joule)', size=13)
+        axs[index].set_xlabel('Epochs', size=13)
+        axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index].tick_params(labelsize=12)
+        lgnd = axs[index].legend(fontsize=12)
+        lgnd.set_title(title='Total energy consumption', prop={'size': 13})
+        axs[index].grid(True)
+
+        # Increase index
+        index += 1
+
+    if sparsity_logs:  # Plot sparsity
+        sparsity_log, sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log, sparsity_D_log, \
+            sparsity_D_W1_log, sparsity_D_W2_log, sparsity_D_W3_log = sparsity_logs
+
+        axs[index].plot(sparsity_log, label=f'S-GAIN: {sparsity_log[-1] * 100:.1f}%', color='black')
+        axs[index].plot(sparsity_G_log, label=f'Overall: {sparsity_G_log[-1] * 100:.1f}%', color='navy')
+        axs[index].plot(sparsity_G_W1_log, label=f'Layer 1: {sparsity_G_W1_log[-1] * 100:.1f}%', color='blue')
+        axs[index].plot(sparsity_G_W2_log, label=f'Layer 2: {sparsity_G_W2_log[-1] * 100:.1f}%', color='dodgerblue')
+        axs[index].plot(sparsity_G_W3_log, label=f'Layer 3: {sparsity_G_W3_log[-1] * 100:.1f}%', color='deepskyblue')
+
+        axs[index + 1].plot(sparsity_log, label=f'S-GAIN: {sparsity_log[-1] * 100:.1f}%', color='black')
+        axs[index + 1].plot(sparsity_D_log, label=f'Overall: {sparsity_D_log[-1] * 100:.1f}%', color='darkred')
+        axs[index + 1].plot(sparsity_D_W1_log, label=f'Layer 1: {sparsity_D_W1_log[-1] * 100:.1f}%', color='tab:red')
+        axs[index + 1].plot(sparsity_D_W2_log, label=f'Layer 2: {sparsity_D_W2_log[-1] * 100:.1f}%', color='lightcoral')
+        axs[index + 1].plot(sparsity_D_W3_log, label=f'Layer 3: {sparsity_D_W3_log[-1] * 100:.1f}%', color='pink')
+
+        len_log = len(sparsity_log)
+
+        # Generator parameters
+        axs[index].set_title('Generator sparsity per epoch')
+        axs[index].title.set_size(16)
+        axs[index].set_ylabel('Sparsity', size=13)
+        axs[index].set_ylim(0, 1)
+        axs[index].yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1., decimals=0))
+        axs[index].set_xlabel('Epochs', size=13)
+        axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index].tick_params(labelsize=12)
+        # Todo add average, minimum and maximum
+        lgnd = axs[index].legend(fontsize=12)
+        lgnd.set_title(title='Final sparsity', prop={'size': 13})
+        axs[index].grid(True)
+
+        # Discriminator parameters
+        axs[index + 1].set_title('Discriminator sparsity per epoch')
+        axs[index + 1].title.set_size(16)
+        axs[index + 1].set_ylabel('Sparsity', size=13)
+        axs[index + 1].set_ylim(0, 1)
+        axs[index + 1].yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1., decimals=0))
+        axs[index + 1].set_xlabel('Epochs', size=13)
+        axs[index + 1].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index + 1].tick_params(labelsize=12)
+        # Todo add average, minimum and maximum
+        lgnd = axs[index + 1].legend(fontsize=12)
+        lgnd.set_title(title='Final sparsity', prop={'size': 13})
+        axs[index + 1].grid(True)
+
+        # Increase index
+        index += 2
+
+    if flops_logs:  # Plot FLOPs
+        flops_log, flops_G_log, flops_D_log = flops_logs
+
+        axs[index].plot(flops_log)
+        axs[index].plot(flops_G_log)
+        axs[index].plot(flops_D_log)
+        # Todo: plot the graph (use the legend to display the total, G, D)
+
+        len_log = len(flops_log)
+
+        # Plot parameters
+        axs[index].set_title('FLOPs per epoch')
+        axs[index].title.set_size(16)
+        axs[index].set_ylabel('FLOPs', size=13)
+        axs[index].set_xlabel('Epochs', size=13)
+        axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index].tick_params(labelsize=12)
+        lgnd = axs[index].legend(fontsize=12)
+        lgnd.set_title(title='Total', prop={'size': 13})
+        axs[index].grid(True)
+
+        # Increase index
+        index += 1
+
+    if loss_logs:  # Plot losses (Cross Entropy and MSE)
+        loss_G_log, loss_D_log, loss_MSE_log = loss_logs
+
+        axs[index].plot(loss_G_log, label='Generator loss', color='tab:blue')
+        axs[index].plot(loss_D_log, label='Discriminator loss', color='tab:red')
+
+        axs[index + 1].plot(loss_MSE_log, label='MSE loss', color='black')
+
+        len_log = len(loss_G_log)
+
+        # Cross Entropy parameters
+        axs[index].title.set_text('Learning curves')
+        axs[index].title.set_size(16)
+        axs[index].set_ylabel('Cross Entropy', size=13)
+        axs[index].set_xlabel('Epochs', size=13)
+        axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index].tick_params(labelsize=12)
+        axs[index].legend(fontsize=12)
+        axs[index].grid(True)
+
+        # MSE parameters
+        axs[index + 1].title.set_text('Learning curves')
+        axs[index + 1].title.set_size(16)
+        axs[index + 1].set_ylabel('MSE', size=13)
+        axs[index + 1].set_xlabel('Epochs', size=13)
+        axs[index + 1].set_xlim(-len_log * 0.01, len_log * 1.01)
+        axs[index + 1].tick_params(labelsize=12)
+        axs[index + 1].legend(fontsize=12)
+        axs[index + 1].grid(True)
+
+        # Increase index
+        index += 2
+
+    # Plot parameters
+    plt.suptitle('[Experiment]', size=24)
+    plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
+
+    # Save plot
+    plt.savefig(filepath, format='png')

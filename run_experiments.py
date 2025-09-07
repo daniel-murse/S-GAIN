@@ -92,7 +92,7 @@ if __name__ == '__main__':
     i = 0
     total = len(experiments)
     start_time = time()
-    print(f'\nProgress: 0% completed (0/{total}) 0:00:00 (estimated left: 0:00:00)\n')
+    print(f'\nProgress: 0% completed (0/{total}) 0:00:00\n')
 
     # Run all experiments
     while len(experiments) > 0:
@@ -108,8 +108,9 @@ if __name__ == '__main__':
             # Report progress
             elapsed_time = int(time() - start_time)
             time_to_completion = int(elapsed_time / i * (total - i)) if i > 0 else 0
-            print(f'\nProgress: {int(i / total * 100)}% completed ({i}/{total}) {timedelta(seconds=elapsed_time)} '
-                  f'(estimated left: {timedelta(seconds=time_to_completion)})\n')
+            estimated = f' (estimated left: {timedelta(seconds=time_to_completion)})' if time_to_completion > 0 else ''
+            print(f'\nProgress: {int(i / total * 100)}% completed ({i}/{total}) {timedelta(seconds=elapsed_time)}'
+                  f'{estimated}\n')
 
         # Update the experiments
         if loop_until_complete and not ignore_existing_files and retry_failed_experiments:
