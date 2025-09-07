@@ -140,7 +140,6 @@ $ python analyze.py --all --save --experiments output --analysis analysis
 - **utils/flops:** Contains code to calculate FLOPs. (copied from Google Research)
 - **utils/analysis.py:** Contains functions to analyze the experiments.
 - **utils/data_loader.py:** Loads the datasets.
-- **utils/graphs.py:** The first version of graphs.py: Plot all the relevant graphs to different files.
 - **utils/graphs2.py:** An updated version of graphs.py: Plot all the relevant graphs to the same file.
 - **utils/inits_TFv2_INT8.py:** Contains all the different initialization strategies for the TFv2_INT8 version.
 - **utils/inits_TFv1_FP32.py:** Contains all the different initialization strategies for the TFv1_FP32 version.

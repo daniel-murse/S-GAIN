@@ -116,8 +116,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
 
     index = 0
     if rmse_log:  # Plot RMSE
-        axs[index].plot(rmse_log)
-        # Todo: plot the graph (use the legend to display the final)
+        axs[index].plot(rmse_log, label=f'{rmse_log[-1]:.4f}')
 
         len_log = len(rmse_log)
 
@@ -157,7 +156,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
 
     if memory_usage_log:  # Plot memory usage
         axs[index].plot(memory_usage_log)
-        # Todo: plot the graph (use the legend to display the total, avg, min and max)
+        # Todo: plot the graph (use the legend to display the maximum)
 
         len_log = len(memory_usage_log)
 
@@ -177,7 +176,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
 
     if energy_consumption_log:  # Plot energy consumption
         axs[index].plot(energy_consumption_log)
-        # Todo: plot the graph (use the legend to display the total, avg, min and max)
+        # Todo: plot the graph (use the legend to display the total)
 
         len_log = len(energy_consumption_log)
 
@@ -199,17 +198,31 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
         sparsity_log, sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log, sparsity_D_log, \
             sparsity_D_W1_log, sparsity_D_W2_log, sparsity_D_W3_log = sparsity_logs
 
-        axs[index].plot(sparsity_log, label=f'S-GAIN: {sparsity_log[-1] * 100:.1f}%', color='black')
-        axs[index].plot(sparsity_G_log, label=f'Overall: {sparsity_G_log[-1] * 100:.1f}%', color='navy')
-        axs[index].plot(sparsity_G_W1_log, label=f'Layer 1: {sparsity_G_W1_log[-1] * 100:.1f}%', color='blue')
-        axs[index].plot(sparsity_G_W2_log, label=f'Layer 2: {sparsity_G_W2_log[-1] * 100:.1f}%', color='dodgerblue')
-        axs[index].plot(sparsity_G_W3_log, label=f'Layer 3: {sparsity_G_W3_log[-1] * 100:.1f}%', color='deepskyblue')
+        # Labels Todo add average and maximum?
+        label_S_GAIN = f'S-GAIN: {sparsity_log[0] * 100:.1f}% | {sparsity_log[-1] * 100:.1f}% | {min(sparsity_log) * 100:.1f}%'
 
-        axs[index + 1].plot(sparsity_log, label=f'S-GAIN: {sparsity_log[-1] * 100:.1f}%', color='black')
-        axs[index + 1].plot(sparsity_D_log, label=f'Overall: {sparsity_D_log[-1] * 100:.1f}%', color='darkred')
-        axs[index + 1].plot(sparsity_D_W1_log, label=f'Layer 1: {sparsity_D_W1_log[-1] * 100:.1f}%', color='tab:red')
-        axs[index + 1].plot(sparsity_D_W2_log, label=f'Layer 2: {sparsity_D_W2_log[-1] * 100:.1f}%', color='lightcoral')
-        axs[index + 1].plot(sparsity_D_W3_log, label=f'Layer 3: {sparsity_D_W3_log[-1] * 100:.1f}%', color='pink')
+        label_G = f'Overall: {sparsity_G_log[0] * 100:.1f}% | {sparsity_G_log[-1] * 100:.1f}% | {min(sparsity_G_log) * 100:.1f}%'
+        label_G_W1 = f'Layer 1: {sparsity_G_W1_log[0] * 100:.1f}% | {sparsity_G_W1_log[-1] * 100:.1f}% | {min(sparsity_G_W1_log) * 100:.1f}%'
+        label_G_W2 = f'Layer 2: {sparsity_G_W2_log[0] * 100:.1f}% | {sparsity_G_W2_log[-1] * 100:.1f}% | {min(sparsity_G_W2_log) * 100:.1f}%'
+        label_G_W3 = f'Layer 3: {sparsity_G_W3_log[0] * 100:.1f}% | {sparsity_G_W3_log[-1] * 100:.1f}% | {min(sparsity_G_W3_log) * 100:.1f}%'
+
+        label_D = f'Overall: {sparsity_D_log[0] * 100:.1f}% | {sparsity_D_log[-1] * 100:.1f}% | {min(sparsity_D_log) * 100:.1f}%'
+        label_D_W1 = f'Layer 1: {sparsity_D_W1_log[0] * 100:.1f}% | {sparsity_D_W1_log[-1] * 100:.1f}% | {min(sparsity_D_W1_log) * 100:.1f}%'
+        label_D_W2 = f'Layer 2: {sparsity_D_W2_log[0] * 100:.1f}% | {sparsity_D_W2_log[-1] * 100:.1f}% | {min(sparsity_D_W2_log) * 100:.1f}%'
+        label_D_W3 = f'Layer 3: {sparsity_D_W3_log[0] * 100:.1f}% | {sparsity_D_W3_log[-1] * 100:.1f}% | {min(sparsity_D_W3_log) * 100:.1f}%'
+
+        # Plots
+        axs[index].plot(sparsity_log, label=label_S_GAIN, color='black')
+        axs[index].plot(sparsity_G_log, label=label_G, color='navy')
+        axs[index].plot(sparsity_G_W1_log, label=label_G_W1, color='blue')
+        axs[index].plot(sparsity_G_W2_log, label=label_G_W2, color='dodgerblue')
+        axs[index].plot(sparsity_G_W3_log, label=label_G_W3, color='deepskyblue')
+
+        axs[index + 1].plot(sparsity_log, label=label_S_GAIN, color='black')
+        axs[index + 1].plot(sparsity_D_log, label=label_D, color='darkred')
+        axs[index + 1].plot(sparsity_D_W1_log, label=label_D_W1, color='tab:red')
+        axs[index + 1].plot(sparsity_D_W2_log, label=label_D_W2, color='lightcoral')
+        axs[index + 1].plot(sparsity_D_W3_log, label=label_D_W3, color='pink')
 
         len_log = len(sparsity_log)
 
@@ -222,9 +235,8 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
         axs[index].set_xlabel('Epochs', size=13)
         axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
         axs[index].tick_params(labelsize=12)
-        # Todo add average, minimum and maximum
         lgnd = axs[index].legend(fontsize=12)
-        lgnd.set_title(title='Final sparsity', prop={'size': 13})
+        lgnd.set_title(title='Sparsity: Initial | Final | Minimum', prop={'size': 13})
         axs[index].grid(True)
 
         # Discriminator parameters
@@ -236,9 +248,8 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
         axs[index + 1].set_xlabel('Epochs', size=13)
         axs[index + 1].set_xlim(-len_log * 0.01, len_log * 1.01)
         axs[index + 1].tick_params(labelsize=12)
-        # Todo add average, minimum and maximum
         lgnd = axs[index + 1].legend(fontsize=12)
-        lgnd.set_title(title='Final sparsity', prop={'size': 13})
+        lgnd.set_title(title='Sparsity: Initial | Final | Minimum', prop={'size': 13})
         axs[index + 1].grid(True)
 
         # Increase index
@@ -247,10 +258,9 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
     if flops_logs:  # Plot FLOPs
         flops_log, flops_G_log, flops_D_log = flops_logs
 
-        axs[index].plot(flops_log)
-        axs[index].plot(flops_G_log)
-        axs[index].plot(flops_D_log)
-        # Todo: plot the graph (use the legend to display the total, G, D)
+        axs[index].plot(flops_log, label=f'S-GAIN: {sum(flops_log)}', color='black')
+        axs[index].plot(flops_G_log, label=f'Generator: {sum(flops_G_log)}', color='tab:blue')
+        axs[index].plot(flops_D_log, label=f'Discriminator: {sum(flops_D_log)}', color='tab:red')
 
         len_log = len(flops_log)
 
@@ -262,7 +272,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
         axs[index].set_xlim(-len_log * 0.01, len_log * 1.01)
         axs[index].tick_params(labelsize=12)
         lgnd = axs[index].legend(fontsize=12)
-        lgnd.set_title(title='Total', prop={'size': 13})
+        lgnd.set_title(title='Total FLOPs', prop={'size': 13})
         axs[index].grid(True)
 
         # Increase index
@@ -302,7 +312,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
         index += 2
 
     # Plot parameters
-    plt.suptitle('[Experiment]', size=24)  # Todo
+    plt.suptitle('[Experiment]', size=24)  # Todo experiment name / details
     plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
 
     # Save plot

@@ -60,26 +60,12 @@ def get_filepaths(directory, experiment, rmse):
             or isfile(f'{temp_filepath}_log.json')
             or isfile(f'{temp_filepath}_model.json')
             or isfile(f'{temp_filepath}_graphs.png')
-            or isfile(f'{temp_filepath}_RMSE.png')
-            or isfile(f'{temp_filepath}_imputation_time.png')
-            or isfile(f'{temp_filepath}_memory_usage.png')
-            or isfile(f'{temp_filepath}_energy_consumption.png')
-            or isfile(f'{temp_filepath}_sparsity.png')
-            or isfile(f'{temp_filepath}_FLOPs.png')
-            or isfile(f'{temp_filepath}_loss.png')
     ):
         i = 1
         while (isfile(f'{temp_filepath}_{i}.csv')
                or isfile(f'{temp_filepath}_{i}_log.json')
                or isfile(f'{temp_filepath}_{i}_model.json')
                or isfile(f'{temp_filepath}_{i}_graphs.png')
-               or isfile(f'{temp_filepath}_{i}_RMSE.png')
-               or isfile(f'{temp_filepath}_{i}_imputation_time.png')
-               or isfile(f'{temp_filepath}_{i}_memory_usage.png')
-               or isfile(f'{temp_filepath}_{i}_energy_consumption.png')
-               or isfile(f'{temp_filepath}_{i}_sparsity.png')
-               or isfile(f'{temp_filepath}_{i}_FLOPs.png')
-               or isfile(f'{temp_filepath}_{i}_loss.png')
         ): i += 1
         temp_filepath = f'{temp_filepath}_{i}'
 
@@ -87,17 +73,8 @@ def get_filepaths(directory, experiment, rmse):
     filepath_log = f'{temp_filepath}_log.json'
     filepath_model = f'{temp_filepath}_model.json'
     filepath_graphs = f'{temp_filepath}_graphs.png'
-    filepath_rmse = f'{temp_filepath}_RMSE.png'
-    filepath_imputation_time = f'{temp_filepath}_imputation_time.png'
-    filepath_memory_usage = f'{temp_filepath}_memory_usage.png'
-    filepath_energy_consumption = f'{temp_filepath}_energy_consumption.png'
-    filepath_sparsity = f'{temp_filepath}_sparsity.png'
-    filepath_flops = f'{temp_filepath}_FLOPs.png'
-    filepath_loss = f'{temp_filepath}_loss.png'
 
-    return filepath_imputed_data, filepath_log, filepath_model, filepath_graphs, filepath_rmse, \
-        filepath_imputation_time, filepath_memory_usage, filepath_energy_consumption, filepath_sparsity, \
-        filepath_flops, filepath_loss
+    return filepath_imputed_data, filepath_log, filepath_model, filepath_graphs
 
 
 def save_imputation(filepath, imputed_data_x):
