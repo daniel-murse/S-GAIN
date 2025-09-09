@@ -107,9 +107,9 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
         loss_logs = [loss_G_log, loss_D_log, loss_MSE_log]
 
     # Get nrows required
-    nrows = 1 + (1 if rmse_log else 0) + (1 if imputation_time_log else 0) + (1 if memory_usage_log else 0) \
-            + (1 if energy_consumption_log else 0) + (2 if sparsity_logs else 0) + (1 if flops_logs else 0) \
-            + (2 if loss_logs else 0)
+    nrows = (1 if experiment or sys_info else 0) + (1 if rmse_log else 0) + (1 if imputation_time_log else 0) \
+            + (1 if memory_usage_log else 0) + (1 if energy_consumption_log else 0) + (2 if sparsity_logs else 0) \
+            + (1 if flops_logs else 0) + (2 if loss_logs else 0)
 
     # Stop if no logs are provided
     if nrows == 0: return
@@ -120,34 +120,35 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
 
     index = 0
     if experiment or sys_info:
-        # Experiment
-        exp = 'Experiment'
-        dataset = f'Dataset: {experiment["dataset"]}'
-        miss_rate = f'Miss rate: {int(experiment["miss_rate"] * 100)}%'
-        miss_modality = f'Miss modality: {experiment["miss_modality"]}'
-        seed = f'Seed: {hex(experiment["seed"])}'
-        batch_size = f'Batch size: {experiment["batch_size"]}'
-        hint_rate = f'Hint rate: {experiment["hint_rate"]}'
-        alpha = f'Alpha: {experiment["alpha"]}'
-        iterations = f'Iterations: {experiment["iterations"]}'
-        generator_sparsity = f'Generator sparsity: {experiment["generator_sparsity"]}'
-        generator_modality = f'Generator modality: {experiment["generator_modality"]}'
-        discriminator_sparsity = f'Discriminator sparsity: {experiment["discriminator_sparsity"]}'
-        discriminator_modality = f'Discriminator modality: {experiment["discriminator_modality"]}'
+        text = []
+        if experiment:
+            exp = 'Experiment'
+            dataset = f'Dataset: {experiment["dataset"]}'
+            miss_rate = f'Miss rate: {int(experiment["miss_rate"] * 100)}%'
+            miss_modality = f'Miss modality: {experiment["miss_modality"]}'
+            seed = f'Seed: {hex(experiment["seed"])}'
+            batch_size = f'Batch size: {experiment["batch_size"]}'
+            hint_rate = f'Hint rate: {experiment["hint_rate"]}'
+            alpha = f'Alpha: {experiment["alpha"]}'
+            iterations = f'Iterations: {experiment["iterations"]}'
+            generator_sparsity = f'Generator sparsity: {experiment["generator_sparsity"]}'
+            generator_modality = f'Generator modality: {experiment["generator_modality"]}'
+            discriminator_sparsity = f'Discriminator sparsity: {experiment["discriminator_sparsity"]}'
+            discriminator_modality = f'Discriminator modality: {experiment["discriminator_modality"]}'
 
-        # System information
-        info = 'System information'
-        platform = f'Platform: {sys_info["platform"]}'
-        version = f'Version: {sys_info["version"]}'
-        cpu = f'CPU: {sys_info["cpu"]}'
-        memory = f'Memory: {sys_info["memory"]}'
-        gpu = f'GPU: {sys_info["gpu"]}'
-        motherboard = f'Motherboard: {sys_info["motherboard"]}'
+            text += [exp, dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations,
+                    generator_sparsity, generator_modality, discriminator_sparsity, discriminator_modality, ' ']
 
-        # Create labels
-        text = [exp, dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations,
-                  generator_sparsity, generator_modality, discriminator_sparsity, discriminator_modality, ' ', info,
-                  platform, version, cpu, memory, gpu, motherboard]
+        if sys_info:
+            info = 'System information'
+            platform = f'Platform: {sys_info["platform"]}'
+            version = f'Version: {sys_info["version"]}'
+            cpu = f'CPU: {sys_info["cpu"]}'
+            memory = f'Memory: {sys_info["memory"]}'
+            gpu = f'GPU: {sys_info["gpu"]}'
+            motherboard = f'Motherboard: {sys_info["motherboard"]}'
+
+            text += [info, platform, version, cpu, memory, gpu, motherboard]
 
         # Plot info
         i = .95
