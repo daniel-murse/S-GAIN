@@ -147,13 +147,10 @@ def main(args):
         save_imputation(filepath_imputed_data, imputed_data_x)
 
     if not no_log:
-        if verbose: print('Saving logs...')
-
         if no_graph:
             os.system(f'python log_and_graph.py -fpl {filepath_log} -exp {experiment} -ng'
                       f'{" -nsi" if no_system_information else ""}')
         else:
-            if verbose: print('Plotting graphs...')
             os.system(f'python log_and_graph.py -fpl {filepath_log} -fpg {filepath_graphs} -exp {experiment}'
                       f'{" -nsi" if no_system_information else ""}')
 

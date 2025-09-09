@@ -95,6 +95,9 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
     :param title: the title (optional)
     """
 
+    # Todo implement
+    rmse_log, memory_usage_log, flops_logs = None, None, []
+
     if logs:  # Get all the logs from the list
         rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log, sparsity_log, \
             sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log, \
@@ -137,7 +140,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
             discriminator_modality = f'Discriminator modality: {experiment["discriminator_modality"]}'
 
             text += [exp, dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations,
-                    generator_sparsity, generator_modality, discriminator_sparsity, discriminator_modality, ' ']
+                     generator_sparsity, generator_modality, discriminator_sparsity, discriminator_modality, ' ']
 
         if sys_info:
             info = 'System information'

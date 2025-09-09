@@ -28,12 +28,14 @@ def main(args):
     - directory: the directory of the temporary files
     - no_graph: don't plot the graphs (log only)
     - no_system_information: don't log system information
+    - verbose: enable verbose output to console
     """
 
     # Get the parameters
     directory = args.directory
     no_graph = args.no_graph
     no_system_information = args.no_system_information
+    verbose = args.verbose
 
     # Read run data
     f = open('temp/run_data', 'r')
@@ -41,18 +43,22 @@ def main(args):
     f.close()
 
     # Compile and save the logs
+    if verbose: print('Saving logs...')
     rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log, sparsity_log, sparsity_G_log, \
         sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log, sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, \
         sparsity_D_W3_log, flops_log, flops_G_log, flops_D_log, loss_G_log, loss_D_log, loss_MSE_log, exp, sys_info \
         = save_logs(filepath_log, experiment, directory, no_system_information)
 
     if not no_graph:
+        if verbose: print('Plotting graphs...')
         title = filepath_imputed_data.split('/')[-1].replace('.csv', '')
         plot_graphs(filepath_graphs, rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log,
                     [sparsity_log, sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log,
                      sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, sparsity_D_W3_log],
                     [flops_log, flops_G_log, flops_D_log], [loss_G_log, loss_D_log, loss_MSE_log],
                     experiment=exp, sys_info=sys_info, title=title)
+
+    if verbose: print('Finished.')
 
 
 def save_logs(filepath, experiment=None, directory='temp', no_system_information=False):
@@ -256,6 +262,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '-nsi', '--no_system_information',
         help="don't log system information",
+        action='store_true')
+    parser.add_argument(
+        '-v', '--verbose',
+        help='enable verbose logging',
         action='store_true')
     args = parser.parse_args()
 

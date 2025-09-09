@@ -104,11 +104,12 @@ if __name__ == '__main__':
             os.system(experiment)
 
             # Compile logs and plot graphs
-            if not no_log:
-                if verbose: print('Saving logs...')
-                if not no_graph and verbose: print('Plotting graphs...')
-                os.system(f'python log_and_graphs.py{" -ng" if no_graph else ""}'
-                          f'{" -nsi" if no_system_information else ""}')
+            command = f'python log_and_graphs.py{" --no_graph" if no_graph else ""}' \
+                      f'{" --no_system_information" if no_system_information else ""}' \
+                      f'{" --verbose" if verbose else ""}'
+
+            if verbose: print(f'\n{command}')
+            if not no_log: os.system(command)
 
             # Increase counter
             rmse = read_bin('temp/rmse.bin')[-1]
