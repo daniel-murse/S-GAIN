@@ -18,7 +18,7 @@ import argparse
 import json
 
 from utils.graphs2 import plot_graphs
-from utils.load_store import parse_experiment, read_bin
+from utils.load_store import parse_experiment, read_bin, system_information
 
 
 def main(args):
@@ -27,36 +27,41 @@ def main(args):
     :param args:
     - directory: the directory of the temporary files
     - no_graph: don't plot the graphs (log only)
+    - no_system_information: don't log system information
     """
 
     # Get the parameters
     directory = args.directory
     no_graph = args.no_graph
+    no_system_information = args.no_system_information
 
     # Read run data
     f = open('temp/run_data', 'r')
-    experiment, filepath_log, filepath_graphs = f.read().split('\n')
+    experiment, filepath_imputed_data, filepath_log, filepath_graphs, _ = f.read().split('\n')
     f.close()
 
     # Compile and save the logs
     rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log, sparsity_log, sparsity_G_log, \
         sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log, sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, \
-        sparsity_D_W3_log, flops_log, flops_G_log, flops_D_log, loss_G_log, loss_D_log, loss_MSE_log \
-        = save_logs(filepath_log, experiment, directory)
+        sparsity_D_W3_log, flops_log, flops_G_log, flops_D_log, loss_G_log, loss_D_log, loss_MSE_log, exp, sys_info \
+        = save_logs(filepath_log, experiment, directory, no_system_information)
 
     if not no_graph:
+        title = filepath_imputed_data.split('/')[-1].replace('.csv', '')
         plot_graphs(filepath_graphs, rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log,
                     [sparsity_log, sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log,
                      sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, sparsity_D_W3_log],
-                    [flops_log, flops_G_log, flops_D_log], [loss_G_log, loss_D_log, loss_MSE_log])
+                    [flops_log, flops_G_log, flops_D_log], [loss_G_log, loss_D_log, loss_MSE_log],
+                    experiment=exp, sys_info=sys_info, title=title)
 
 
-def save_logs(filepath, experiment=None, directory='temp'):
+def save_logs(filepath, experiment=None, directory='temp', no_system_information=False):
     """Compile and save the logs to a json file.
 
     :param filepath: the filepath to save the logs to
     :param experiment: the name of the experiment
     :param directory: the directory of the temporary files
+    :param no_system_information: don't log system information
 
     :return:
     - RMSE: the RMSE log
@@ -78,6 +83,8 @@ def save_logs(filepath, experiment=None, directory='temp'):
     - loss_G: the loss log for the generator (cross entropy)
     - loss_D: the loss log for the discriminator (cross entropy)
     - loss_MSE: the loss log (MSE)
+    - exp: a dictionary containing the experiment
+    - sys_info: a dictionary containing the system information
     """
 
     # Read the log files
@@ -103,28 +110,31 @@ def save_logs(filepath, experiment=None, directory='temp'):
     sparsity = [(sparsity_G[i] + sparsity_D[i]) / 2 for i in range(len(sparsity_G))]
     FLOPs = [FLOPs_G[i] + FLOPs_D[i] for i in range(len(FLOPs_G))]
 
-    logs = {}
+    logs, exp, sys_info = {}, None, None
     if experiment is not None:
         dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity, \
             generator_modality, discriminator_sparsity, discriminator_modality \
             = parse_experiment(experiment, file=False)
 
-        logs.update({
-            'experiment': {
-                'dataset': dataset,
-                'miss_rate': miss_rate,
-                'miss_modality': miss_modality,
-                'seed': seed,
-                'batch_size': batch_size,
-                'hint_rate': hint_rate,
-                'alpha': alpha,
-                'iterations': iterations,
-                'generator_sparsity': generator_sparsity,
-                'generator_modality': generator_modality,
-                'discriminator_sparsity': discriminator_sparsity,
-                'discriminator_modality': discriminator_modality
-            }
-        })
+        exp = {
+            'dataset': dataset,
+            'miss_rate': miss_rate,
+            'miss_modality': miss_modality,
+            'seed': seed,
+            'batch_size': batch_size,
+            'hint_rate': hint_rate,
+            'alpha': alpha,
+            'iterations': iterations,
+            'generator_sparsity': generator_sparsity,
+            'generator_modality': generator_modality,
+            'discriminator_sparsity': discriminator_sparsity,
+            'discriminator_modality': discriminator_modality
+        }
+        logs.update({'experiment': exp})
+
+    if not no_system_information:
+        sys_info = system_information()
+        logs.update({'system_information': sys_info})
 
     logs.update({
         'rmse': {
@@ -228,7 +238,7 @@ def save_logs(filepath, experiment=None, directory='temp'):
 
     return RMSE, imputation_time, memory_usage, energy_consumption, sparsity, sparsity_G, sparsity_G_W1, \
         sparsity_G_W2, sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
-        FLOPs_D, loss_G, loss_D, loss_MSE
+        FLOPs_D, loss_G, loss_D, loss_MSE, exp, sys_info
 
 
 if __name__ == '__main__':
@@ -242,6 +252,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '-ng', '--no_graph',
         help="don't plot the graphs (log only)",
+        action='store_true')
+    parser.add_argument(
+        '-nsi', '--no_system_information',
+        help="don't log system information",
         action='store_true')
     args = parser.parse_args()
 

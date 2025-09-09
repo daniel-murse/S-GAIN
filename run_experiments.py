@@ -64,6 +64,7 @@ no_log = False  # Default: False
 no_graph = False  # Default: False
 no_model = False  # Default: False
 no_save = False  # Default: False
+no_system_information = False  # Default: False
 analyze = True  # Automatically analyze the experiments after completion
 analysis_folder = 'analysis'  # Default: 'analysis'
 
@@ -80,7 +81,8 @@ def update_experiments():
         generator_modalities=generator_modalities, discriminator_sparsities=discriminator_sparsities,
         discriminator_modalities=discriminator_modalities, folder=output_folder, n_runs=n_runs,
         ignore_existing_files=ignore_existing_files, retry_failed_experiments=retry_failed_experiments,
-        verbose=verbose, no_log=True, no_graph=True, no_model=no_model, no_save=no_save, get_commands=True
+        verbose=verbose, no_log=True, no_graph=True, no_model=no_model, no_save=no_save,
+        no_system_information=no_system_information, get_commands=True
     )
 
 
@@ -105,7 +107,8 @@ if __name__ == '__main__':
             if not no_log:
                 if verbose: print('Saving logs...')
                 if not no_graph and verbose: print('Plotting graphs...')
-                os.system(f'python log_and_graphs.py{" -ng" if no_graph else ""}')
+                os.system(f'python log_and_graphs.py{" -ng" if no_graph else ""}'
+                          f'{" -nsi" if no_system_information else ""}')
 
             # Increase counter
             rmse = read_bin('temp/rmse.bin')[-1]

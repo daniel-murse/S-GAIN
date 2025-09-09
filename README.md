@@ -46,6 +46,7 @@ log_and_compile.py after each experiment.
 - **no_graph:** don't plot graphs after training
 - **no_model:** don't save the trained model
 - **no_save:** don't save the imputation
+- **no_system_information:** don't log system information
 
 ### Example commands (default parameters)
 
@@ -63,7 +64,7 @@ $ python main.py spam -mr 0.2 -mm MCAR -s 0 -bs 128 -hr 0.9 -a 100 -i 10000 -gs 
 ```
 ###### Set flags
 ```shell
-$ python main.py spam --verbose --no_log --no_graph --no_model --no_save
+$ python main.py spam --verbose --no_log --no_graph --no_model --no_save --no_system_information
 ```
 
 ### Outputs
@@ -77,6 +78,7 @@ $ python main.py spam --verbose --no_log --no_graph --no_model --no_save
 
 - **directory:** the directory of the temporary files
 - **no_graph:** don't plot the graphs (log only)
+- **no_system_information:** don't log system information
 
 ```shell
 $ python log_and_graph.py
@@ -121,16 +123,9 @@ $ python analyze.py --all --save --experiments output --analysis analysis
 #### 
 - **output:** The output folder for the experiments.
 - **output/[experiment].csv:** The imputed data for the experiment.
-- **output/[experiment]_energy_consumption.png:** A graph of the energy consumption measured throughout the experiment.
-- **output/[experiment]_FLOPs.png:** A graph of the FLOPs measured throughout the experiment.
-- **output/[experiment]_graphs.png:** A single png file containing all the graphs.
-- **output/[experiment]_imputation_time.png:** A graph of the imputation time measured throughout the experiment.
+- **output/[experiment]_graphs.png:** A single png file containing all the graphs: RMSE, imputation time, memory usage, energy consumption, sparsity, FLOPs and loss (cross entropy and MSE).
 - **output/[experiment]_log.json:** A log file of all measurements taken throughout the experiment.
-- **output/[experiment]_loss.png:** A graph of the loss measured throughout the experiment.
-- **output/[experiment]_memory_usage.png:** A graph of the memory usage measured throughout the experiment.
 - **output/[experiment]_model.json:** The imputed data for the specified experiment.
-- **output/[experiment]_RMSE.png:** A graph of the RMSE measured throughout the experiment.
-- **output/[experiment]_sparsity.png:** A graph of the sparsity measured throughout the experiment.
 
 #### 
 - **temp:** Contains temporary files. Used for logging measurements throughout the experiment.

@@ -21,10 +21,16 @@
 (5) parse_log: parse the log file to a list
 (6) get_experiments: get a dictionary (or a list of strings) of the experiments to run
 (7) read_bin: read a (temporary) binary file
+(8) system_info: get the system information
 """
 
+import cpuinfo
 import json
+import platform
+import psutil
 import struct
+import subprocess
+import wmi
 
 import pandas as pd
 
@@ -255,7 +261,7 @@ def parse_log(filepath_log):
     loss_MSE = log['loss']['MSE']['log']
 
     return RMSE, imputation_time, memory_usage, energy_consumption, sparsity, sparsity_G, sparsity_G_W1, \
-        sparsity_G_W2,  sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
+        sparsity_G_W2, sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
         FLOPs_D, loss_G, loss_D, loss_MSE
 
 
@@ -263,7 +269,8 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
                     alphas=None, iterations_s=None, generator_sparsities=None, generator_modalities=None,
                     discriminator_sparsities=None, discriminator_modalities=None, folder='output', n_runs=10,
                     ignore_existing_files=False, retry_failed_experiments=True, include=None, exclude=None,
-                    verbose=False, no_log=False, no_graph=False, no_model=False, no_save=False, get_commands=False):
+                    verbose=False, no_log=False, no_graph=False, no_model=False, no_save=False,
+                    no_system_information=False, get_commands=False):
     """Get a dictionary (or a list of strings) of the experiments to run.
 
     :param datasets: which datasets to use
@@ -289,6 +296,7 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
     :param no_graph: don't plot graphs after training
     :param no_model: don't save the trained model
     :param no_save: don't save the imputation
+    :param no_system_information: don't log system information
     :param get_commands: get a list of ready to run commands instead of a dictionary
 
     :return:
@@ -396,11 +404,12 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
             f'--batch_size {batch_size} --hint_rate {hint_rate} --alpha {alpha} --iterations {iterations} '
             f'--generator_sparsity {generator_sparsity} --generator_modality {generator_modality} '
             f'--discriminator_sparsity {discriminator_sparsity} --discriminator_modality {discriminator_modality} '
-            f'--folder {folder} {"--verbose " if verbose else ""}{"--no_log " if no_log else ""}'
-            f'{"--no_graph " if no_graph else ""}{"--no_model " if no_model else ""}{"--no_save" if no_save else ""}'
+            f'--folder {folder}{" --verbose" if verbose else ""}{" --no_log" if no_log else ""}'
+            f'{" --no_graph" if no_graph else ""}{" --no_model" if no_model else ""}{" --no_save" if no_save else ""}'
+            f'{" --no_system_information" if no_system_information else ""}'
 
             for [dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity,
-            generator_modality, discriminator_sparsity, discriminator_modality], n in experiments.items()
+                 generator_modality, discriminator_sparsity, discriminator_modality], n in experiments.items()
             for _ in range(n)
         ]
         return commands
@@ -426,3 +435,71 @@ def read_bin(filepath):
     data = list(struct.unpack(fmt, data))
 
     return data
+
+
+def system_information(directory='temp2'):
+    """Get the system information.
+
+    :param directory: the temporary directory
+
+    :return:
+    - sys_info: a dictionary containing the system information
+    """
+
+    filepath = f'{directory}/sys_info.json'
+
+    # Load system information
+    if isfile(filepath):
+        f = open(filepath, 'r')
+        sys_info = json.load(f)
+        f.close()
+
+    # Get and store system information
+    else:
+        sys_info = {
+            'platform': platform.system(),
+            'version': platform.version(),
+            'cpu': cpuinfo.get_cpu_info()['brand_raw'],
+            'memory': f'{psutil.virtual_memory().total / (1024 ** 3):.1f} GB'
+        }
+
+        # Todo multiple gpu support
+        if sys_info['platform'] == 'Linux':
+            # Get GPU
+            sys_info['gpu'] = 'unable to identify GPU (no support for Linux yet)'
+
+            # Todo Update OS and log motherboard
+
+        elif sys_info['platform'] == 'Windows':
+            # Get GPU
+            sys_info['gpu'] = wmi.WMI().Win32_VideoController()[0].name
+
+            # Update OS and log motherboard
+            for x in subprocess.check_output(['systeminfo']).decode('utf-8').split('\n'):
+                if x.startswith('OS Name'):
+                    sys_info['version'] = x.split(':')[1].strip()
+                elif x.startswith('OS Version'):
+                    sys_info['version'] += f' {x.split(":")[1].strip()}'
+                elif x.startswith('System Manufacturer'):
+                    sys_info['motherboard'] = x.split(':')[1].strip()
+                elif x.startswith('System Model'):
+                    sys_info['motherboard'] += f' {x.split(":")[1].strip()}'
+                    break
+
+        elif sys_info['platform'] == 'Darwin':
+            # Get GPU
+            sys_info['gpu'] = 'unable to identify GPU (no support for Mac OS yet)'
+
+            # Todo Update OS and log motherboard
+
+        else:
+            # Log GPU and motherboard
+            sys_info['gpu'] = f'unable to identify GPU ({sys_info["platform"]} unsupported)'
+            sys_info['motherboard'] = f'unable to identify motherboard ({sys_info["platform"]} unsupported)'
+
+        if not isdir(directory): makedirs(directory)
+        f = open(filepath, 'w')
+        f.write(json.dumps(sys_info))
+        f.close()
+
+    return sys_info

@@ -52,6 +52,7 @@ def main(args):
     - no_graph: don't plot graphs after training
     - no_model: don't save the trained model
     - no_save: don't save the imputation
+    - no_system_information: don't log system information
 
     :return:
     - imputed_data_x: the imputed data
@@ -77,6 +78,7 @@ def main(args):
     no_graph = args.no_graph
     no_model = args.no_model
     no_save = args.no_save
+    no_system_information = args.no_system_information
 
     # Standardization
     def sparsity_modality(sparsity, modality):
@@ -138,9 +140,7 @@ def main(args):
     if verbose: print(f'RMSE: {rmse}')
 
     # Save the imputation, the logs and the (trained) model, and plot the graphs
-    filepath_imputed_data, filepath_log, filepath_model, filepath_graphs, filepath_rmse, filepath_imputation_time, \
-        filepath_energy_consumption, filepath_memory_usage, filepath_sparsity, filepath_flops, filepath_loss \
-        = get_filepaths(folder, experiment, rmse)
+    filepath_imputed_data, filepath_log, filepath_model, filepath_graphs = get_filepaths(folder, experiment, rmse)
 
     if not no_save:
         if verbose: print('Saving imputation...')
@@ -150,14 +150,16 @@ def main(args):
         if verbose: print('Saving logs...')
 
         if no_graph:
-            os.system(f'python log_and_graph.py -fpl {filepath_log} -exp {experiment} -ng')
+            os.system(f'python log_and_graph.py -fpl {filepath_log} -exp {experiment} -ng'
+                      f'{" -nsi" if no_system_information else ""}')
         else:
             if verbose: print('Plotting graphs...')
-            os.system(f'python log_and_graph.py -fpl {filepath_log} -fpg {filepath_graphs} -exp {experiment}')
+            os.system(f'python log_and_graph.py -fpl {filepath_log} -fpg {filepath_graphs} -exp {experiment}'
+                      f'{" -nsi" if no_system_information else ""}')
 
     else:  # Store data to run log_and_graphs.py later
         f = open('temp/run_data', 'w')
-        f.write(f'{experiment}\n{filepath_log}\n{filepath_graphs}')
+        f.write(f'{experiment}\n{filepath_imputed_data}\n{filepath_log}\n{filepath_graphs}\n{filepath_model}')
         f.close()
 
     if not no_model:
@@ -263,6 +265,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '-ns', '--no_save',
         help="don't save the imputation",
+        action='store_true')
+    parser.add_argument(
+        '-nsi', '--no_system_information',
+        help="don't log system information",
         action='store_true')
     args = parser.parse_args()
 
