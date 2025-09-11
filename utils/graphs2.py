@@ -144,14 +144,13 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
 
         if sys_info:
             info = 'System information'
-            platform = f'Platform: {sys_info["platform"]}'
-            version = f'Version: {sys_info["version"]}'
+            version = f'OS: {sys_info["version"]}'
             cpu = f'CPU: {sys_info["cpu"]}'
             memory = f'Memory: {sys_info["memory"]}'
             gpu = f'GPU: {sys_info["gpu"]}'
             motherboard = f'Motherboard: {sys_info["motherboard"]}'
 
-            text += [info, platform, version, cpu, memory, gpu, motherboard]
+            text += [info, version, cpu, memory, gpu, motherboard]
 
         # Plot info
         i = .95

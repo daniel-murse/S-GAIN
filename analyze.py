@@ -48,14 +48,16 @@ def main(args):
     # Get all log files
     if verbose: print('Loading experiments...')
     logs = [file for file in listdir(input_folder) if file.endswith('log.json')]
-
-    # Load experiments
     experiments = parse_files(logs)
 
     # Analyze experiments
     if verbose: print('Analyzing experiments...')
     compile_metrics(experiments, save=save, folder=output_folder, verbose=verbose)
+
+    if verbose: print('Plotting RMSE graphs...')
     if plot_all or rmse: plot_rmse(experiments, save=save, folder=output_folder, verbose=verbose)
+
+    if verbose: print('Plotting success rate graphs...')
     if plot_all or success_rate: plot_success_rate(experiments, save=save, folder=output_folder, verbose=verbose)
 
     # Drop failed experiments
