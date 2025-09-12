@@ -158,7 +158,10 @@ $ python analyze.py --all --save --experiments output --analysis analysis --verb
 
 ####   
 
-- **temp:** Contains temporary files. Used for logging measurements throughout the experiment.
+- **temp:** Contains temporary files.
+- **temp/exp_bins:** Contains binary files used for logging measurements throughout the experiment.
+- **temp/run_data:** Stores the experiment and filepaths. Used to automate running logs_and_graphs.py.
+- **temp/sys_info.json:** Caches the system information.
 
 ####   
 
