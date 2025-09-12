@@ -19,7 +19,7 @@ model in TensorFlow 2.x using Sparse Tensors and INT8 precision, and then run it
 We ran our experiments using python 3.11, earlier or later versions might have package conflicts.
 
 Compiling the log and plotting the graphs may not function correctly when called from main.py. It is advised to run
-log_and_compile.py after each experiment.
+log_and_graphs.py after each experiment.
 
 ---
 
