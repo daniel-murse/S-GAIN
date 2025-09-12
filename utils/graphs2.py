@@ -366,7 +366,9 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
         index += 2
 
     # Plot parameters
-    plt.suptitle(title.replace('_i', '\n_i'), size=22)
+    m = int(len(title) / 2)
+    title = title[:m] + title[m:].replace('_', '\n_', 1)
+    plt.suptitle(title, size=22)
     plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
 
     # Save plot
