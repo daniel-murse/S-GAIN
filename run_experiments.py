@@ -112,7 +112,7 @@ if __name__ == '__main__':
             if not no_log: os.system(command)
 
             # Increase counter
-            rmse = read_bin('temp/rmse.bin')[-1]
+            rmse = read_bin('temp/exp_bins/rmse.bin')[-1]
             if ignore_existing_files or not retry_failed_experiments or pd.notna(rmse): i += 1
 
             # Report progress

@@ -61,7 +61,7 @@ def main(args):
     if verbose: print('Finished.')
 
 
-def save_logs(filepath, experiment=None, directory='temp', no_system_information=False):
+def save_logs(filepath, experiment=None, directory='temp/exp_bins', no_system_information=False):
     """Compile and save the logs to a json file.
 
     :param filepath: the filepath to save the logs to
@@ -253,7 +253,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-d', '-dir', '--directory', '-f', '--folder',
         help='the directory of the temporary files',
-        default='temp',
+        default='temp/exp_bins',
         type=str)
     parser.add_argument(
         '-ng', '--no_graph',

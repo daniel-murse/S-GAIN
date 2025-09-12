@@ -437,7 +437,7 @@ def read_bin(filepath):
     return data
 
 
-def system_information(directory='temp2'):
+def system_information(directory='temp'):
     """Get the system information.
 
     :param directory: the temporary directory

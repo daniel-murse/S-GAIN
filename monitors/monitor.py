@@ -57,7 +57,7 @@ from utils.metrics import get_rmse
 
 
 class Monitor:
-    def __init__(self, data_x, data_mask, experiment=None, directory='temp', verbose=False):
+    def __init__(self, data_x, data_mask, experiment=None, directory='temp/exp_bins', verbose=False):
         """Initialize the monitor.
 
         :param data_x: the original data (without missing values)
