@@ -25,11 +25,12 @@ from os import mkdir
 from os.path import isdir
 from matplotlib import ticker, container
 
-from utils.graphs2 import get_sizing
+from utils.graphs2 import get_sizing, plot_info
 
 import matplotlib.pyplot as plt
 
 # Groupings
+exp = 'Experiments'
 d_mr_mm_s = ['dataset', 'miss_rate', 'miss_modality', 'seed']
 bs_hr_a_i = ['batch_size', 'hint_rate', 'alpha', 'iterations']
 gs = ['generator_sparsity']
@@ -180,6 +181,13 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
     for (dataset, miss_rate, miss_modality, seed), d_mr_mm_s_group in exps.groupby(d_mr_mm_s):
 
         title = f'{dataset}_{miss_rate}_{miss_modality}_{hex(seed)}'
+        dataset = f'Dataset: {dataset}'
+        miss_rate = f'Miss rate: {int(miss_rate * 100)}%'
+        miss_modality = f'Miss modality: {miss_modality}'
+        seed = f'Seed: {hex(seed)}'
+        text = [exp, dataset, miss_rate, miss_modality, seed, ' ']
+        if sys_info: text += sys_info
+
         if verbose: print(f'{title}')
         d_mr_mm_s_group.drop(d_mr_mm_s, axis='columns', inplace=True)
 
@@ -198,7 +206,7 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
 
         if nDsm == 1 or nGsm == 1:
             # Plot parameters
-            width, height, left, right, top, bottom, wspace, _ = get_sizing(2, 1, 4.8, 3.2)
+            width, height, left, right, top, bottom, wspace, _ = get_sizing(2, 1, 6.4, 4.8)
             fig, axs = plt.subplots(1, 2, figsize=(width, height))
             plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace)
 
@@ -217,17 +225,11 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
                 axs[1].set_axis_off()
 
             # Plot system information
-            if sys_info:
-                axs[1].text(0, 1.02, sys_info[0], fontsize=13, weight='bold')
-
-                i = .96
-                for info in sys_info[1:]:
-                    axs[1].text(0, i, info, fontsize=12)
-                    i -= .05
+            plot_info(axs[1], text)
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Plot parameters
-            width, height, left, right, top, bottom, wspace, hspace = get_sizing(2, nrows, 4.8, 3.2)
+            width, height, left, right, top, bottom, wspace, hspace = get_sizing(2, nrows, 6.4, 4.8)
             fig, axs = plt.subplots(nrows, 2, figsize=(width, height))
             plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
 
@@ -242,7 +244,7 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
                     axs[i + 1, 1].set_axis_off()
                     if not legend_ax: legend_ax = axs[i + 1, 1]
             if not legend_ax:
-                width, height, left, right, top, bottom, wspace, hspace = get_sizing(3, nrows, 4.8, 3.2)
+                width, height, left, right, top, bottom, wspace, hspace = get_sizing(3, nrows, 6.4, 4.8)
                 fig, axs = plt.subplots(nrows, 3, figsize=(width, height))
                 plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
                 for i in range(nrows): axs[i, 2].set_axis_off()
@@ -279,13 +281,7 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
                 subplot(axs[i + 1, 1], D_rmse_mean_std, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
 
             # Plot system information
-            if sys_info:
-                axs[1].text(0, 1.02, sys_info[0], fontsize=13, weight='bold')
-
-                i = .96
-                for info in sys_info[1:]:
-                    axs[1].text(0, i, info, fontsize=12)
-                    i -= .05
+            plot_info(axs[1], text)
 
         # Plot parameters
         plt.suptitle(title, size=24)
@@ -388,6 +384,13 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
     for (dataset, miss_rate, miss_modality, seed), d_mr_mm_s_group in exps.groupby(d_mr_mm_s):
 
         title = f'{dataset}_{miss_rate}_{miss_modality}_{hex(seed)}'
+        dataset = f'Dataset: {dataset}'
+        miss_rate = f'Miss rate: {int(miss_rate * 100)}%'
+        miss_modality = f'Miss modality: {miss_modality}'
+        seed = f'Seed: {hex(seed)}'
+        text = [exp, dataset, miss_rate, miss_modality, seed, ' ']
+        if sys_info: text += sys_info
+
         if verbose: print(f'{title}')
         d_mr_mm_s_group.drop(d_mr_mm_s, axis='columns', inplace=True)
 
@@ -406,7 +409,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
 
         if nDsm == 1 or nGsm == 1:  # Only one setting used for the Discriminator
             # Plot parameters
-            width, height, left, right, top, bottom, wspace, _ = get_sizing(2, 1, 9.6, 3.2)
+            width, height, left, right, top, bottom, wspace, _ = get_sizing(2, 1, 12.8, 4.8)
             fig, axs = plt.subplots(1, 2, figsize=(width, height))
             plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace)
 
@@ -427,17 +430,11 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
                 axs[1].set_axis_off()
 
             # Plot system information
-            if sys_info:
-                axs[1].text(0, 1.02, sys_info[0], fontsize=13, weight='bold')
-
-                i = .96
-                for info in sys_info[1:]:
-                    axs[1].text(0, i, info, fontsize=12)
-                    i -= .05
+            plot_info(axs[1], text)
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Plot parameters
-            width, height, left, right, top, bottom, wspace, hspace = get_sizing(2, nrows, 9.6, 3.2)
+            width, height, left, right, top, bottom, wspace, hspace = get_sizing(2, nrows, 12.8, 4.8)
             fig, axs = plt.subplots(nrows, 2, figsize=(width, height))
             plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
 
@@ -452,7 +449,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
                     axs[i + 1, 1].set_axis_off()
                     if not legend_ax: legend_ax = axs[i + 1, 1]
             if not legend_ax:
-                width, height, left, right, top, bottom, wspace, hspace = get_sizing(3, nrows, 9.6, 3.2)
+                width, height, left, right, top, bottom, wspace, hspace = get_sizing(3, nrows, 12.8, 4.8)
                 fig, axs = plt.subplots(nrows, 3, figsize=(width, height))
                 plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
                 for i in range(nrows): axs[i, 2].set_axis_off()
@@ -493,13 +490,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
                 subplot(axs[i + 1, 1], D_rmse_mean_std, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
 
             # Plot system information
-            if sys_info:
-                axs[1].text(0, 1.02, sys_info[0], fontsize=13, weight='bold')
-
-                i = .96
-                for info in sys_info[1:]:
-                    axs[1].text(0, i, info, fontsize=12)
-                    i -= .05
+            plot_info(axs[1], text)
 
         # Plot parameters
         plt.suptitle(title, size=24)
