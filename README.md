@@ -2,7 +2,8 @@
 
 When using this code, please cite the following paper:
 
-Paper: B.P. van Oers, I. Baysal Erez, M. van Keulen, "Sparse GAIN: Imputation Methods to Handle Missing Values with Sparse Initialization", IDEAL conference, 2025.
+Paper: B.P. van Oers, I. Baysal Erez, M. van Keulen, "Sparse GAIN: Imputation Methods to Handle Missing Values with
+Sparse Initialization", IDEAL conference, 2025.
 
 Authors: Brian Patrick van Oers, Işıl Baysal Erez, Maurice van Keulen
 

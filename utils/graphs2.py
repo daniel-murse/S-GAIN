@@ -77,21 +77,22 @@ def get_sizing(ncols, nrows, ax_width, ax_height):
     return fig_width, fig_height, left, right, top, bottom, wspace, hspace
 
 
-def plot_info(ax, text, i=0.97):
+def plot_info(ax, text, x=0.0, y=0.97):
     """Plot the experiment and system information.
 
     :param ax: the subplot to print the experiment and/or experiment to
     :param text: a list of strings to print
-    :param i: the height to start printing from
+    :param x: the x coordinate to start printing from
+    :param y: the y coordinate to start printing from
     """
 
     for txt in text:
         if txt in ('Experiment', 'Experiments', ' ', 'System information'):
-            ax.text(0, i, txt, fontsize=13, weight='bold')
-            i -= .06
+            ax.text(x, y, txt, fontsize=13, weight='bold')
+            y -= .06
         else:
-            ax.text(0, i, txt, fontsize=12)
-            i -= .05
+            ax.text(x, y, txt, fontsize=12)
+            y -= .05
 
 
 def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_log=None, energy_consumption_log=None,

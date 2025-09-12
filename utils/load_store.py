@@ -197,11 +197,14 @@ def parse_files(files=None, filepath='output', filetype=None):
         else [parse_experiment(file, file=True) for file in listdir(filepath)] if isdir(filepath) \
         else []
 
+    # Remove files that don't belong to S-GAIN
+    files = [file for file in files if file]
+
     header = ['dataset', 'miss_rate', 'miss_modality', 'seed', 'batch_size', 'hint_rate', 'alpha', 'iterations',
               'generator_sparsity', 'generator_modality', 'discriminator_sparsity', 'discriminator_modality', 'rmse',
               'index', 'filetype']
 
-    if filetype is not None: files = [file for file in files if file[-1] == filetype]
+    if filetype: files = [file for file in files if file[-1] == filetype]
 
     df_files = pd.DataFrame(files, columns=header)
     return df_files

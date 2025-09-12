@@ -169,7 +169,7 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
         if not legend_ax.get_legend():
             handles, labels = ax.get_legend_handles_labels()
             handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]  # Remove error bars
-            lgnd = legend_ax.legend(handles, labels, fontsize=12, loc=f'{"lower" if sys_info else "upper"} left')
+            lgnd = legend_ax.legend(handles, labels, fontsize=12, loc='upper left')
             lgnd_title = f'Batch size, hint rate, alpha,\niterations and {subtitle.lower()} modality' \
                 if show_bs_hr_a_i else f'{subtitle} modality'
             lgnd.set_title(lgnd_title, prop={'size': 13})
@@ -206,8 +206,8 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
 
         if nDsm == 1 or nGsm == 1:
             # Plot parameters
-            width, height, left, right, top, bottom, wspace, _ = get_sizing(2, 1, 6.4, 4.8)
-            fig, axs = plt.subplots(1, 2, figsize=(width, height))
+            width, height, left, right, top, bottom, wspace, _ = get_sizing(3, 1, 6.4, 4.8)
+            fig, axs = plt.subplots(1, 3, figsize=(width, height))
             plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace)
 
             # Show the influence of different settings for the Generator
@@ -216,6 +216,7 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
                 G_rmse_mean_std = G_group.groupby(bs_hr_a_i + gs + gm, as_index=False).agg(['mean', 'std'])
                 subplot(axs[0], G_rmse_mean_std, 'G', axs[1], Dsm[0][0], Dsm[0][1])
                 axs[1].set_axis_off()
+                axs[2].set_axis_off()
 
             # Show the influence of different settings for the Discriminator
             else:  # nGsm == 1
@@ -223,9 +224,10 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
                 D_rmse_mean_std = D_group.groupby(bs_hr_a_i + ds + dm, as_index=False).agg(['mean', 'std'])
                 subplot(axs[0], D_rmse_mean_std, 'D', axs[1], Gsm[0][0], Gsm[0][1])
                 axs[1].set_axis_off()
+                axs[2].set_axis_off()
 
             # Plot system information
-            plot_info(axs[1], text)
+            plot_info(axs[2], text)
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Plot parameters
@@ -233,22 +235,38 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
             fig, axs = plt.subplots(nrows, 2, figsize=(width, height))
             plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
 
-            # Remove unused subplots and use the first empty subplot for the legend
-            legend_ax = None
+            # Remove unused subplots and use the first and second empty subplot for the legend and system information
+            info_ax, legend_ax, axs_set_axis_off = None, None, []
             for i in range(nGsm):
                 if i >= nDsm:
-                    axs[i + 1, 0].set_axis_off()
-                    if not legend_ax: legend_ax = axs[i + 1, 0]
+                    axs_set_axis_off.append((i + 1, 0))
+                    if not info_ax:
+                        info_ax = (i + 1, 0)
+                    elif not legend_ax:
+                        legend_ax = (i + 1, 0)
+
             for i in range(nDsm):
                 if i >= nGsm:
-                    axs[i + 1, 1].set_axis_off()
-                    if not legend_ax: legend_ax = axs[i + 1, 1]
-            if not legend_ax:
+                    axs_set_axis_off.append((i + 1, 1))
+                    if not info_ax:
+                        info_ax = (i + 1, 1)
+                    elif not legend_ax:
+                        legend_ax = (i + 1, 1)
+
+            if not info_ax or not legend_ax:
                 width, height, left, right, top, bottom, wspace, hspace = get_sizing(3, nrows, 6.4, 4.8)
                 fig, axs = plt.subplots(nrows, 3, figsize=(width, height))
                 plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
-                for i in range(nrows): axs[i, 2].set_axis_off()
-                legend_ax = axs[0, 2]
+
+                for i in range(nrows): axs_set_axis_off.append((i, 2))
+                if not info_ax:
+                    info_ax, legend_ax = (0, 2), (1, 2)
+                else:  # not legend_ax
+                    legend_ax = (0, 2)
+
+            for coord in axs_set_axis_off: axs[coord[0], coord[1]].set_axis_off()
+            legend_ax = axs[legend_ax[0], legend_ax[1]]
+            info_ax = axs[info_ax[0], info_ax[1]]
 
             # Show the influence of different settings for the Generator (ignore Discriminator settings)
             G_group = d_mr_mm_s_group.drop(ds + dm, axis='columns')
@@ -281,7 +299,7 @@ def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose
                 subplot(axs[i + 1, 1], D_rmse_mean_std, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
 
             # Plot system information
-            plot_info(axs[1], text)
+            plot_info(info_ax, text)
 
         # Plot parameters
         plt.suptitle(title, size=24)
@@ -304,7 +322,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
     :param verbose: enable verbose output to console
     """
 
-    def subplot(ax, M_rmse_mean_std, M, legend_ax, sparsity='all', modality='settings'):
+    def subplot(ax, M_rmse_mean_std, M, legend_ax, sparsity='all', modality='settings', legend_loc='upper right'):
         """Create a subplot per model setting.
 
         :param ax: the subplot to write to
@@ -313,6 +331,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
         :param legend_ax: the subplot to write the legend to
         :param sparsity: the sparsity of the other model (optional)
         :param modality: the modality of the other model (optional)
+        :param legend_loc: the location of the legend
         """
 
         # Set parameters
@@ -372,7 +391,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
         # Update the legend only on the first plot
         if not legend_ax.get_legend():
             handles, labels = ax.get_legend_handles_labels()
-            lgnd = legend_ax.legend(handles, labels, fontsize=12, loc=f'{"lower" if sys_info else "upper"} left')
+            lgnd = legend_ax.legend(handles, labels, fontsize=12, loc=legend_loc)
             lgnd_title = f'Batch size, hint rate, alpha,\niterations and {subtitle.lower()} modality' \
                 if show_bs_hr_a_i else f'{subtitle} modality'
             lgnd.set_title(lgnd_title, prop={'size': 13})
@@ -430,7 +449,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
                 axs[1].set_axis_off()
 
             # Plot system information
-            plot_info(axs[1], text)
+            plot_info(axs[1], text, x=0.5)
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Plot parameters
@@ -438,28 +457,33 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
             fig, axs = plt.subplots(nrows, 2, figsize=(width, height))
             plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
 
-            # Remove unused subplots and use the first empty subplot for the legend
-            legend_ax = None
+            # Remove unused subplots and use the first and second empty subplot for the legend and system information
+            info_ax, legend_ax, axs_set_axis_off, legend_loc = None, None, [], 'upper right'
             for i in range(nGsm):
                 if i >= nDsm:
                     axs[i + 1, 0].set_axis_off()
-                    if not legend_ax: legend_ax = axs[i + 1, 0]
+                    if not info_ax: info_ax, legend_ax = axs[i + 1, 0], axs[i + 1, 0]
+
             for i in range(nDsm):
                 if i >= nGsm:
                     axs[i + 1, 1].set_axis_off()
-                    if not legend_ax: legend_ax = axs[i + 1, 1]
-            if not legend_ax:
+                    if not info_ax: info_ax, legend_ax = axs[i + 1, 1], axs[i + 1, 1]
+
+            if not info_ax:
                 width, height, left, right, top, bottom, wspace, hspace = get_sizing(3, nrows, 12.8, 4.8)
                 fig, axs = plt.subplots(nrows, 3, figsize=(width, height))
                 plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
+
                 for i in range(nrows): axs[i, 2].set_axis_off()
-                legend_ax = axs[0, 2]
+                if not info_ax:
+                    info_ax, legend_ax = axs[0, 2], axs[1, 2]
+                    legend_loc = 'upper left'
 
             # Show the influence of different settings for the Generator (ignore Discriminator settings)
             G_group = d_mr_mm_s_group.drop(ds + dm, axis='columns')
             G_rmse_mean_std = G_group.groupby(bs_hr_a_i + gs + gm, as_index=False).agg(['count', 'size'])
             G_rmse_mean_std['success_rate'] = G_rmse_mean_std['rmse']['count'] / G_rmse_mean_std['rmse']['size']
-            subplot(axs[0, 0], G_rmse_mean_std, 'G', legend_ax)
+            subplot(axs[0, 0], G_rmse_mean_std, 'G', legend_ax, legend_loc=legend_loc)
 
             # Show the influence of different settings for the Discriminator (ignore Generator settings)
             D_group = d_mr_mm_s_group.drop(gs + gm, axis='columns')
@@ -490,7 +514,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None,
                 subplot(axs[i + 1, 1], D_rmse_mean_std, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
 
             # Plot system information
-            plot_info(axs[1], text)
+            plot_info(info_ax, text)
 
         # Plot parameters
         plt.suptitle(title, size=24)
