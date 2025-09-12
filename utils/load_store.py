@@ -437,13 +437,14 @@ def read_bin(filepath):
     return data
 
 
-def system_information(directory='temp'):
+def system_information(directory='temp', print_ready=False):
     """Get the system information.
 
     :param directory: the temporary directory
+    :param print_ready: return a list of print ready strings instead of a dictionary
 
     :return:
-    - sys_info: a dictionary containing the system information
+    - sys_info: the system information
     """
 
     filepath = f'{directory}/sys_info.json'
@@ -463,16 +464,24 @@ def system_information(directory='temp'):
             'memory': f'{psutil.virtual_memory().total / (1024 ** 3):.1f} GB'
         }
 
-        # Todo multiple gpu support
+        # Todo multiple gpu support (log the one used for running the experiment only)
+        #  and more memory detail (speed, timings or identifier)
         if sys_info['platform'] == 'Linux':
-            # Get GPU
+            # Todo Get GPU
             sys_info['gpu'] = 'unable to identify GPU (no support for Linux yet)'
 
+            # Todo Get disk info
+            sys_info['disk'] = 'unable to identify disk (no support for Linux yet)'
+
             # Todo Update OS and log motherboard
+            sys_info['motherboard'] = 'unable to identify motherboard (no support for Linux yet)'
 
         elif sys_info['platform'] == 'Windows':
             # Get GPU
             sys_info['gpu'] = wmi.WMI().Win32_VideoController()[0].name
+
+            # Todo Get disk info
+            sys_info['disk'] = 'unable to identify disk (no support for Windows yet)'
 
             # Update OS and log motherboard
             for x in subprocess.check_output(['systeminfo']).decode('utf-8').split('\n'):
@@ -487,19 +496,36 @@ def system_information(directory='temp'):
                     break
 
         elif sys_info['platform'] == 'Darwin':
-            # Get GPU
+            # Todo Get GPU
             sys_info['gpu'] = 'unable to identify GPU (no support for Mac OS yet)'
 
+            # Todo Get disk info
+            sys_info['disk'] = 'unable to identify disk (no support for Mac OS yet)'
+
             # Todo Update OS and log motherboard
+            sys_info['motherboard'] = 'unable to identify motherboard (no support for Mac OS yet)'
 
         else:
-            # Log GPU and motherboard
+            # Log GPU, disk and motherboard
             sys_info['gpu'] = f'unable to identify GPU ({sys_info["platform"]} unsupported)'
+            sys_info['disk'] = f'unable to identify disk ({sys_info["platform"]} unsupported)'
             sys_info['motherboard'] = f'unable to identify motherboard ({sys_info["platform"]} unsupported)'
 
+        # Store the system information
         if not isdir(directory): makedirs(directory)
         f = open(filepath, 'w')
         f.write(json.dumps(sys_info))
         f.close()
+
+    # Convert dictionary to print ready strings
+    if print_ready:
+        info = 'System information'
+        version = f'OS: {sys_info["version"]}'
+        cpu = f'CPU: {sys_info["cpu"]}'
+        memory = f'Memory: {sys_info["memory"]}'
+        gpu = f'GPU: {sys_info["gpu"]}'
+        disk = f'Disk: {sys_info["disk"]}'
+        motherboard = f'Motherboard: {sys_info["motherboard"]}'
+        sys_info = [info, version, cpu, memory, gpu, disk, motherboard]
 
     return sys_info

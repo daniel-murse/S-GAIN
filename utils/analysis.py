@@ -86,12 +86,13 @@ def compile_metrics(experiments, save=None, folder=None, verbose=False):
     return exps
 
 
-def plot_rmse(experiments, save=False, folder='analysis', verbose=False):
+def plot_rmse(experiments, save=False, folder='analysis', sys_info=None, verbose=False):
     """Plot the RMSE of the provided experiments.
 
     :param experiments: a Pandas DataFrame with the experiments to compile
     :param save: whether to save the compiled metrics
     :param folder: the folder to save the compiled metrics to
+    :param sys_info: the system info (in print ready format)
     :param verbose: enable verbose output to console
     """
 
@@ -167,7 +168,7 @@ def plot_rmse(experiments, save=False, folder='analysis', verbose=False):
         if not legend_ax.get_legend():
             handles, labels = ax.get_legend_handles_labels()
             handles = [h[0] if isinstance(h, container.ErrorbarContainer) else h for h in handles]  # Remove error bars
-            lgnd = legend_ax.legend(handles, labels, fontsize=12, loc='upper left')
+            lgnd = legend_ax.legend(handles, labels, fontsize=12, loc=f'{"lower" if sys_info else "upper"} left')
             lgnd_title = f'Batch size, hint rate, alpha,\niterations and {subtitle.lower()} modality' \
                 if show_bs_hr_a_i else f'{subtitle} modality'
             lgnd.set_title(lgnd_title, prop={'size': 13})
@@ -214,6 +215,15 @@ def plot_rmse(experiments, save=False, folder='analysis', verbose=False):
                 D_rmse_mean_std = D_group.groupby(bs_hr_a_i + ds + dm, as_index=False).agg(['mean', 'std'])
                 subplot(axs[0], D_rmse_mean_std, 'D', axs[1], Gsm[0][0], Gsm[0][1])
                 axs[1].set_axis_off()
+
+            # Plot system information
+            if sys_info:
+                axs[1].text(0, 1.02, sys_info[0], fontsize=13, weight='bold')
+
+                i = .96
+                for info in sys_info[1:]:
+                    axs[1].text(0, i, info, fontsize=12)
+                    i -= .05
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Plot parameters
@@ -268,6 +278,15 @@ def plot_rmse(experiments, save=False, folder='analysis', verbose=False):
                 D_rmse_mean_std = D_group.groupby(bs_hr_a_i + ds + dm, as_index=False).agg(['mean', 'std'])
                 subplot(axs[i + 1, 1], D_rmse_mean_std, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
 
+            # Plot system information
+            if sys_info:
+                axs[1].text(0, 1.02, sys_info[0], fontsize=13, weight='bold')
+
+                i = .96
+                for info in sys_info[1:]:
+                    axs[1].text(0, i, info, fontsize=12)
+                    i -= .05
+
         # Plot parameters
         plt.suptitle(title, size=24)
 
@@ -279,12 +298,13 @@ def plot_rmse(experiments, save=False, folder='analysis', verbose=False):
         fig.show()
 
 
-def plot_success_rate(experiments, save=False, folder='analysis', verbose=False):
+def plot_success_rate(experiments, save=False, folder='analysis', sys_info=None, verbose=False):
     """Plot the success rate of the provided experiments.
 
     :param experiments: a Pandas DataFrame with the experiments to compile
     :param save: whether to save the compiled metrics
     :param folder: the folder to save the compiled metrics to
+    :param sys_info: the system info (in print ready format)
     :param verbose: enable verbose output to console
     """
 
@@ -356,7 +376,7 @@ def plot_success_rate(experiments, save=False, folder='analysis', verbose=False)
         # Update the legend only on the first plot
         if not legend_ax.get_legend():
             handles, labels = ax.get_legend_handles_labels()
-            lgnd = legend_ax.legend(handles, labels, fontsize=12, loc='upper left')
+            lgnd = legend_ax.legend(handles, labels, fontsize=12, loc=f'{"lower" if sys_info else "upper"} left')
             lgnd_title = f'Batch size, hint rate, alpha,\niterations and {subtitle.lower()} modality' \
                 if show_bs_hr_a_i else f'{subtitle} modality'
             lgnd.set_title(lgnd_title, prop={'size': 13})
@@ -405,6 +425,15 @@ def plot_success_rate(experiments, save=False, folder='analysis', verbose=False)
                 D_rmse_mean_std['success_rate'] = D_rmse_mean_std['rmse']['count'] / D_rmse_mean_std['rmse']['size']
                 subplot(axs[0], D_rmse_mean_std, 'D', axs[1], Gsm[0][0], Gsm[0][1])
                 axs[1].set_axis_off()
+
+            # Plot system information
+            if sys_info:
+                axs[1].text(0, 1.02, sys_info[0], fontsize=13, weight='bold')
+
+                i = .96
+                for info in sys_info[1:]:
+                    axs[1].text(0, i, info, fontsize=12)
+                    i -= .05
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Plot parameters
@@ -462,6 +491,15 @@ def plot_success_rate(experiments, save=False, folder='analysis', verbose=False)
                 D_rmse_mean_std = D_group.groupby(bs_hr_a_i + ds + dm, as_index=False).agg(['count', 'size'])
                 D_rmse_mean_std['success_rate'] = D_rmse_mean_std['rmse']['count'] / D_rmse_mean_std['rmse']['size']
                 subplot(axs[i + 1, 1], D_rmse_mean_std, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
+
+            # Plot system information
+            if sys_info:
+                axs[1].text(0, 1.02, sys_info[0], fontsize=13, weight='bold')
+
+                i = .96
+                for info in sys_info[1:]:
+                    axs[1].text(0, i, info, fontsize=12)
+                    i -= .05
 
         # Plot parameters
         plt.suptitle(title, size=24)

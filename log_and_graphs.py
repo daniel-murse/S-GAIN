@@ -44,13 +44,15 @@ def main(args):
 
     # Compile and save the logs
     if verbose: print('Saving logs...')
+    sys_info = system_information() if not no_system_information else None
     rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log, sparsity_log, sparsity_G_log, \
         sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log, sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, \
-        sparsity_D_W3_log, flops_log, flops_G_log, flops_D_log, loss_G_log, loss_D_log, loss_MSE_log, exp, sys_info \
-        = save_logs(filepath_log, experiment, directory, no_system_information)
+        sparsity_D_W3_log, flops_log, flops_G_log, flops_D_log, loss_G_log, loss_D_log, loss_MSE_log, exp \
+        = save_logs(filepath_log, experiment, directory, sys_info)
 
     if not no_graph:
         if verbose: print('Plotting graphs...')
+        sys_info = system_information(print_ready=True) if not no_system_information else None
         title = filepath_imputed_data.split('/')[-1].replace('.csv', '')
         plot_graphs(filepath_graphs, rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log,
                     [sparsity_log, sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log,
@@ -61,13 +63,13 @@ def main(args):
     if verbose: print('Finished.')
 
 
-def save_logs(filepath, experiment=None, directory='temp/exp_bins', no_system_information=False):
+def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=None):
     """Compile and save the logs to a json file.
 
     :param filepath: the filepath to save the logs to
     :param experiment: the name of the experiment
     :param directory: the directory of the temporary files
-    :param no_system_information: don't log system information
+    :param sys_info: the system information
 
     :return:
     - RMSE: the RMSE log
@@ -90,7 +92,6 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', no_system_in
     - loss_D: the loss log for the discriminator (cross entropy)
     - loss_MSE: the loss log (MSE)
     - exp: a dictionary containing the experiment
-    - sys_info: a dictionary containing the system information
     """
 
     # Read the log files
@@ -116,7 +117,7 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', no_system_in
     sparsity = [(sparsity_G[i] + sparsity_D[i]) / 2 for i in range(len(sparsity_G))]
     FLOPs = [FLOPs_G[i] + FLOPs_D[i] for i in range(len(FLOPs_G))]
 
-    logs, exp, sys_info = {}, None, None
+    logs, exp = {}, None
     if experiment is not None:
         dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity, \
             generator_modality, discriminator_sparsity, discriminator_modality \
@@ -138,9 +139,7 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', no_system_in
         }
         logs.update({'experiment': exp})
 
-    if not no_system_information:
-        sys_info = system_information()
-        logs.update({'system_information': sys_info})
+    if sys_info: logs.update({'system_information': sys_info})
 
     logs.update({
         'rmse': {
@@ -244,7 +243,7 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', no_system_in
 
     return RMSE, imputation_time, memory_usage, energy_consumption, sparsity, sparsity_G, sparsity_G_W1, \
         sparsity_G_W2, sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
-        FLOPs_D, loss_G, loss_D, loss_MSE, exp, sys_info
+        FLOPs_D, loss_G, loss_D, loss_MSE, exp
 
 
 if __name__ == '__main__':

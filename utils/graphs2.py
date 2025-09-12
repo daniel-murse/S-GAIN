@@ -91,7 +91,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
     :param loss_logs: the loss logs [Generator, Discriminator, MSE]
     :param logs: a list of all logs (optional)
     :param experiment: the experiment
-    :param sys_info: the system info
+    :param sys_info: the system info (in print ready format)
     :param title: the title (optional)
     """
 
@@ -142,15 +142,7 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
             text += [exp, dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations,
                      generator_sparsity, generator_modality, discriminator_sparsity, discriminator_modality, ' ']
 
-        if sys_info:
-            info = 'System information'
-            version = f'OS: {sys_info["version"]}'
-            cpu = f'CPU: {sys_info["cpu"]}'
-            memory = f'Memory: {sys_info["memory"]}'
-            gpu = f'GPU: {sys_info["gpu"]}'
-            motherboard = f'Motherboard: {sys_info["motherboard"]}'
-
-            text += [info, version, cpu, memory, gpu, motherboard]
+        if sys_info: text += sys_info
 
         # Plot info
         i = .95

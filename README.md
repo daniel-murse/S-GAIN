@@ -110,6 +110,7 @@ $ python log_and_graph.py --verbose
 - **save:** save the analysis
 - **input (experiments):** the folder where the experiments were saved to (optional, default: output)
 - **output (analysis):** save the analysis to a different folder (optional, default: analysis)
+- **no_system_information:** don't log system information
 - **verbose:** enable verbose logging
 
 ```shell

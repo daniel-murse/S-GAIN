@@ -19,7 +19,7 @@ import argparse
 
 from os import listdir
 
-from utils.load_store import parse_files
+from utils.load_store import parse_files, system_information
 from utils.analysis import compile_metrics, plot_rmse, plot_success_rate
 
 
@@ -33,6 +33,7 @@ def main(args):
     - save: save the plots
     - input: the folder the experiments were saved to
     - output: the folder to save the analysis to
+    - no_system_information: don't log system information
     - verbose: enable verbose output to console
     """
 
@@ -43,22 +44,25 @@ def main(args):
     save = args.save
     input_folder = args.input
     output_folder = args.output
+    no_system_information = args.no_system_information
     verbose = args.verbose
 
     # Get all log files
     if verbose: print('Loading experiments...')
     logs = [file for file in listdir(input_folder) if file.endswith('log.json')]
     experiments = parse_files(logs)
+    sys_info = system_information(print_ready=True) if not no_system_information else None
 
     # Analyze experiments
     if verbose: print('Analyzing experiments...')
     compile_metrics(experiments, save=save, folder=output_folder, verbose=verbose)
 
     if verbose: print('Plotting RMSE graphs...')
-    if plot_all or rmse: plot_rmse(experiments, save=save, folder=output_folder, verbose=verbose)
+    if plot_all or rmse: plot_rmse(experiments, save=save, folder=output_folder, sys_info=sys_info, verbose=verbose)
 
     if verbose: print('Plotting success rate graphs...')
-    if plot_all or success_rate: plot_success_rate(experiments, save=save, folder=output_folder, verbose=verbose)
+    if plot_all or success_rate: plot_success_rate(experiments, save=save, folder=output_folder, sys_info=sys_info,
+                                                   verbose=verbose)
 
     # Drop failed experiments
     logs = [file for file in logs if 'nan' not in file]
@@ -98,6 +102,10 @@ if __name__ == '__main__':
         help='save the analysis to a different folder (optional) [default: analysis]',
         default='analysis',
         type=str)
+    parser.add_argument(
+        '-nsi', '--no_system_information',
+        help="don't log system information",
+        action='store_true')
     parser.add_argument(
         '-v', '--verbose',
         help='enable verbose logging',
