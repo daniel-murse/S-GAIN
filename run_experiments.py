@@ -18,6 +18,7 @@
 """
 
 import os
+import subprocess
 
 import pandas as pd
 
@@ -67,6 +68,7 @@ no_save = False  # Default: False
 no_system_information = False  # Default: False
 analyze = True  # Automatically analyze the experiments after completion
 analysis_folder = 'analysis'  # Default: 'analysis'
+auto_shutdown = True  # Default: False
 
 
 def update_experiments():
@@ -129,3 +131,7 @@ if __name__ == '__main__':
             break
 
     if analyze: os.system(f'python analyze.py --all -in {output_folder} -out {analysis_folder} --save --verbose')
+
+    if auto_shutdown and total > 0:
+        if verbose: print(f'Processes finished.\nShutting down...')
+        subprocess.run(['shutdown', '-s'])
