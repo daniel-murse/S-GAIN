@@ -22,6 +22,9 @@ We ran our experiments using python 3.11, earlier or later versions might have p
 Compiling the log and plotting the graphs may not function correctly when called from main.py. It is advised to run
 log_and_graphs.py after each experiment.
 
+One may use run_experiments.py, which does not have aforementioned problem, to run multiple experiments in sequence,
+automatically analyze them and if needed shutdown the computer after wards.
+
 ---
 
 ## How to run the command
@@ -35,7 +38,7 @@ log_and_graphs.py after each experiment.
 - **miss_modality:** the modality of missing data [MCAR, MAR, MNAR] (default: MCAR)
 - **seed:** the seed used to introduce missing elements in the data (optional)
 
-####   
+####
 
 - **batch_size:** the number of samples in mini-batch (default: 128)
 - **hint_rate:** the hint probability (default: 0.9)
@@ -47,7 +50,7 @@ log_and_graphs.py after each experiment.
 - **discriminator_sparsity:** the probability of sparsity in the discriminator (default: 0)
 - **discriminator_modality:** the initialization and pruning and regrowth strategy of the discriminator (default: dense)
 
-####   
+####
 
 - **folder (directory):** save the imputed data to a different folder (optional) [default: output]
 - **verbose:** enable verbose logging
@@ -125,7 +128,7 @@ $ python analyze.py --all --save --experiments output --analysis analysis --verb
 
 ## Folders and files
 
-####   
+####
 
 - **datasets:** Contains (some of) the datasets to run the S-GAIN imputer on. A dataset must be complete, have a header
   and the labels and index must be removed. These datasets serve as x_train. (Todo: test with labels to test its
@@ -137,18 +140,18 @@ $ python analyze.py --all --save --experiments output --analysis analysis --verb
 - **datasets/spam.csv:** Hopkins, M., Reeber, E., Forman, G., & Suermondt, J. (1999). Spambase [Dataset]. UCI Machine
   Learning Repository. https://doi.org/10.24432/C53G6X.
 
-####   
+####
 
 - **models:** Contains the different models. Currently only contains S-GAIN.
 - **models/s_gain_TFv2_INT8.py:** The S-GAIN imputer. This version uses TensorFlow 2.x and INT8 precision.
 - **models/s_gain_TFv1_FP32.py:** The S-GAIN imputer. This version uses TensorFlow 1.x and FP32 precision.
 
-####   
+####
 
 - **monitors:** Contains the monitor file. Used for measuring things.
 - **monitors/monitor.py:** The monitor file. Runs in a separate thread as to not interfere with S-GAIN.
 
-####   
+####
 
 - **output:** The output folder for the experiments.
 - **output/[experiment].csv:** The imputed data for the experiment.
@@ -157,14 +160,14 @@ $ python analyze.py --all --save --experiments output --analysis analysis --verb
 - **output/[experiment]_log.json:** A log file of all measurements taken throughout the experiment.
 - **output/[experiment]_model.json:** The imputed data for the specified experiment.
 
-####   
+####
 
 - **temp:** Contains temporary files.
 - **temp/exp_bins:** Contains binary files used for logging measurements throughout the experiment.
 - **temp/run_data:** Stores the experiment and filepaths. Used to automate running logs_and_graphs.py.
 - **temp/sys_info.json:** Caches the system information.
 
-####   
+####
 
 - **utils:** Contains different utility files.
 - **utils/flops:** Contains code to calculate FLOPs. (copied from Google Research)
@@ -177,7 +180,7 @@ $ python analyze.py --all --save --experiments output --analysis analysis --verb
 - **utils/metrics.py:** Calculates all the relevant metrics.
 - **utils/utils.py:** Contains other utilities.
 
-####   
+####
 
 - **analyze.py:** This file is used to run the analysis of the experiments.
 - **log_and_graphs.py:** This file is used to compile the temporary files into a single log file and to plot the
