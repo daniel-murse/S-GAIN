@@ -7,10 +7,16 @@ Sparse Initialization", IDEAL conference, 2025.
 
 Authors: Brian Patrick van Oers, Işıl Baysal Erez, Maurice van Keulen
 
+Release: This paper is associated with [release v0.1.0-alpha](
+https://github.com/BrianPvanOers/S-GAIN/releases/tag/v0.1.0-alpha)
+
 Contact: b.p.vanoers@student.utwente.nl
 
-We adapted the original GAIN code for our work: J. Yoon, J. Jordon and M. van der Schaar,
-["GAIN: Missing Data Imputation using Generative Adversarial Nets," International Conference on Machine Learning (ICML), 2018.](https://github.com/jsyoon0823/GAIN)
+---
+
+We adapted the original GAIN code for our work: [J. Yoon, J. Jordon and M. van der Schaar, "GAIN: Missing Data
+Imputation using Generative Adversarial Nets," International Conference on Machine Learning (ICML), 2018.](
+https://github.com/jsyoon0823/GAIN)
 
 We created a framework for (automated) testing and implemented sparse initialization approaches to improve computational
 efficiency and therefore energy consumption, memory usage and imputation time, and possibly increase performance and
@@ -123,6 +129,14 @@ $ python analyze.py --all --save --experiments output --analysis analysis --verb
 
 - **exps:** a Pandas DataFrame with the computed metrics (RMSE mean, std and improvement, successes, total and success
   rate)
+
+---
+
+### Run_experiments
+
+One may use this file to run multiple experiments in sequence, automatically analyze them and if needed shutdown the
+computer after wards.
+
 
 ---
 
