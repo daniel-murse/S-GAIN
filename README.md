@@ -7,12 +7,18 @@ Sparse Initialization", IDEAL conference, 2025.
 
 Authors: Brian Patrick van Oers, Işıl Baysal Erez, Maurice van Keulen
 
-Release: This paper is associated with [release v0.1.0-alpha](
-https://github.com/BrianPvanOers/S-GAIN/releases/tag/v0.1.0-alpha)
+Release: This paper is associated with [pre-release v0.1.0-alpha](
+https://github.com/BrianPvanOers/S-GAIN/releases/tag/v0.1.0-alpha) *
 
 Contact: b.p.vanoers@student.utwente.nl
 
+\* Alternatively one may import s_gain from models.IDEAL2025.s_gain_TFv1_FP32_init_only in main.py to run the
+experiments associated with this paper with the current tools for analysis. The settings used for the experiments
+discussed in this paper are also available in run_experiments.py for easy replication.
+
 ---
+
+## About the project
 
 We adapted the original GAIN code for our work: [J. Yoon, J. Jordon and M. van der Schaar, "GAIN: Missing Data
 Imputation using Generative Adversarial Nets," International Conference on Machine Learning (ICML), 2018.](
@@ -157,6 +163,8 @@ computer after wards.
 ####
 
 - **models:** Contains the different models. Currently only contains S-GAIN.
+- **models/IDEAL2025/s_gain_TFv1_FP32_init_only.py:** The S-GAIN imputer. This version is associated with the IDEAL 2025
+  paper, it uses TensorFlow 1.x, FP32 precision and only applies sparse initialization.
 - **models/s_gain_TFv2_INT8.py:** The S-GAIN imputer. This version uses TensorFlow 2.x and INT8 precision.
 - **models/s_gain_TFv1_FP32.py:** The S-GAIN imputer. This version uses TensorFlow 1.x and FP32 precision.
 
