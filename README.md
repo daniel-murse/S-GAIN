@@ -123,6 +123,7 @@ $ python log_and_graph.py --verbose
 - **all:** plot all the graphs
 - **rmse:** plot the RMSE graphs
 - **success_rate:** plot the success rate graphs
+- **imputation_time:** plot the imputation time graphs
 - **save:** save the analysis
 - **input (experiments):** the folder where the experiments were saved to (optional, default: output)
 - **output (analysis):** save the analysis to a different folder (optional, default: analysis)

@@ -19,14 +19,16 @@
 (3) plot_graphs: load and plot the graphs (RMSE, imputation time, memory usage, energy_consumption, loss and FLOPs)
 """
 
+import matplotlib.pyplot as plt
+
 from datetime import timedelta
 from matplotlib import ticker
-
-import matplotlib.pyplot as plt
 
 
 def get_sizing(ncols, nrows, ax_width, ax_height):
     """Calculates the different sizes for the plot.
+
+    Todo title y location
 
     :param ncols: the number of columns in the plot
     :param nrows: the number of rows in the plot
