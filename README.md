@@ -134,8 +134,8 @@ $ python log_and_graphs.py --verbose
 $ python analyze.py --all --save --experiments output --analysis analysis --verbose
 ```
 
-- **exps:** a Pandas DataFrame with the computed metrics (RMSE mean, std and improvement, successes, total and success
-  rate)
+- **exps:** a Pandas DataFrame with the computed metrics (RMSE mean, std and improvement, successes, total, success
+  rate and imputation times (total, preparation, S-GAIN and finalization steps))
 
 ---
 
