@@ -113,7 +113,7 @@ $ python main.py spam --verbose --no_log --no_graph --no_model --no_save --no_sy
 - **verbose:** enable verbose logging
 
 ```shell
-$ python log_and_graph.py --verbose
+$ python log_and_graphs.py --verbose
 ```
 
 ---
