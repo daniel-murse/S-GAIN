@@ -28,8 +28,6 @@ from matplotlib import ticker
 def get_sizing(ncols, nrows, ax_width, ax_height, w_space=1.28, h_space=1.2):
     """Calculates the different sizes for the plot.
 
-    Todo title y location
-
     :param ncols: the number of columns in the plot
     :param nrows: the number of rows in the plot
     :param ax_width: the width of the subplots

@@ -862,6 +862,9 @@ def plot_imputation_time(experiments_info, sys_info=None, save=False, folder='an
             # Plot parameters
             axs[0].set_ylim(0, y_max * 1.05)
 
+            # Plot system information
+            plot_info(info_ax, text, x=0.5)
+
         else:  # Multiple settings used for both the Generator and Discriminator
             # Show the influence of different settings for the Generator (ignore Discriminator settings)
             y_max = subplot(axs[0, 0], G_group, 'G', legend_ax, legend_loc)
@@ -887,8 +890,8 @@ def plot_imputation_time(experiments_info, sys_info=None, save=False, folder='an
             for i in range(nDsm + 1): axs[i, 0].set_ylim(0, y_max * 1.05)
             for i in range(nGsm + 1): axs[i, 1].set_ylim(0, y_max * 1.05)
 
-        # Plot system information
-        plot_info(info_ax, text, x=0.5)
+            # Plot system information
+            plot_info(info_ax, text)
 
         # Plot parameters
         plt.suptitle(title, size=24, y=y_title)
