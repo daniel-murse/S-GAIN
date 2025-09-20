@@ -27,7 +27,6 @@ Todo properly name the graphs, legends, labels, etc
 (9) plot_rmse: plot the RMSE of the provided experiments
 (10) plot_success_rate: plot the success rate of the provided experiments
 """
-import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,8 +35,6 @@ from datetime import timedelta
 from matplotlib import ticker, container
 from os import mkdir
 from os.path import isdir
-
-from matplotlib.dates import DateFormatter
 from pandas import DataFrame
 
 from utils.graphs2 import get_sizing, plot_info
@@ -100,21 +97,30 @@ def prepare_plot(nGsm, nDsm, ax_width=6.4, ax_height=4.8, share_axis=False):
     - info_ax: the subplot to print the experiment and system information to
     - legend_ax: the subplot to print the legend to
     - legend_loc: the location of the legend
+    - y_title: the (relative) position of the title in the figure
     """
 
     if nDsm == 1 or nGsm == 1:
         # Plot parameters
-        width, height, left, right, top, bottom, wspace, _ = get_sizing(3, 1, ax_width, ax_height)
-        fig, axs = plt.subplots(1, 3, figsize=(width, height))
+        nrows = 1 if share_axis else 2
+        width, height, left, right, top, bottom, wspace, _, y_title = get_sizing(2, nrows, ax_width, ax_height)
+        fig, axs = plt.subplots(nrows, 2, figsize=(width, height))
         plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace)
-        info_ax, legend_ax, legend_loc = axs[2], axs[1], 'upper left'
+
+        # Determine location of the experiment, system information and legend
+        info_ax = axs[1] if share_axis else axs[1, 0]
+        legend_ax = axs[1] if share_axis else axs[0, 1]
+        legend_loc = 'upper left'
+
+        # Set extra axes off
         info_ax.set_axis_off()
         legend_ax.set_axis_off()
+        if not share_axis: axs[1, 1].set_axis_off()
 
     else:
         # Plot parameters
         nrows = max(nGsm, nDsm) + 1
-        width, height, left, right, top, bottom, wspace, hspace = get_sizing(2, nrows, ax_width, ax_height)
+        width, height, left, right, top, bottom, wspace, hspace, y_title = get_sizing(2, nrows, ax_width, ax_height)
         fig, axs = plt.subplots(nrows, 2, figsize=(width, height))
         plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
 
@@ -158,7 +164,7 @@ def prepare_plot(nGsm, nDsm, ax_width=6.4, ax_height=4.8, share_axis=False):
         info_ax = axs[info_ax[0], info_ax[1]]
         legend_ax = axs[legend_ax[0], legend_ax[1]]
 
-    return fig, axs, info_ax, legend_ax, legend_loc
+    return fig, axs, info_ax, legend_ax, legend_loc, y_title
 
 
 def prepare_text(dataset, miss_rate, miss_modality, seed, sys_info=None):
@@ -502,7 +508,7 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
         # Prepare plot
         d_mr_mm_s_group.drop(d_mr_mm_s, axis='columns', inplace=True)
         Gsm, Dsm, nGsm, nDsm = get_Gsm_Dsm(d_mr_mm_s_group)
-        fig, axs, info_ax, legend_ax, legend_loc = prepare_plot(nGsm, nDsm, 6.4, 4.8)
+        fig, axs, info_ax, legend_ax, legend_loc, y_title = prepare_plot(nGsm, nDsm, 6.4, 4.8)
         title, text = prepare_text(dataset, miss_rate, miss_modality, seed, sys_info)
         if verbose: print(title)
 
@@ -518,11 +524,11 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
         if nDsm == 1 or nGsm == 1:
             # Show the influence of different settings for the Generator
             if nDsm == 1:
-                subplot(axs[0], G_rmse_mean_std, 'G', legend_ax, Dsm[0][0], Dsm[0][1])
+                subplot(axs[0, 0], G_rmse_mean_std, 'G', legend_ax, Dsm[0][0], Dsm[0][1])
 
             # Show the influence of different settings for the Discriminator
             else:  # nGsm == 1
-                subplot(axs[0], D_rmse_mean_std, 'D', legend_ax, Gsm[0][0], Gsm[0][1])
+                subplot(axs[0, 0], D_rmse_mean_std, 'D', legend_ax, Gsm[0][0], Gsm[0][1])
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Show the influence of different settings for the Generator (ignore Discriminator settings)
@@ -555,7 +561,7 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
         plot_info(info_ax, text)
 
         # Plot parameters
-        plt.suptitle(title, size=24)
+        plt.suptitle(title, size=24, y=y_title)
 
         if save:
             if verbose: print(f'Saving plot...')
@@ -575,16 +581,16 @@ def plot_success_rate(experiments, sys_info=None, save=False, folder='analysis',
     :param verbose: enable verbose output to console
     """
 
-    def subplot(ax, M_success_rate, M, legend_ax, sparsity='all', modality='settings', legend_loc='upper right'):
+    def subplot(ax, M_success_rate, M, legend_ax, legend_loc, sparsity='all', modality='settings'):
         """Create a subplot per model setting.
 
         :param ax: the subplot to write to
         :param M_success_rate: the success rate group
         :param M: the model this belongs to (Generator or Discriminator)
         :param legend_ax: the subplot to write the legend to
+        :param legend_loc: the location of the legend
         :param sparsity: the sparsity of the other model (optional)
         :param modality: the modality of the other model (optional)
-        :param legend_loc: the location of the legend
         """
 
         # Subplot parameters
@@ -597,7 +603,6 @@ def plot_success_rate(experiments, sys_info=None, save=False, folder='analysis',
         M_success_rate[m[0]] = M_success_rate[m[0]].str.lower()  # Prevent ER(K)(RW) before dense
         for (batch_size, hint_rate, alpha, iterations, modality), bs_hr_a_i_m_group \
                 in M_success_rate.groupby(bs_hr_a_i + m):
-
             # Get datapoints
             x = bs_hr_a_i_m_group[sparsity].map('{:.0%}'.format)
             y = bs_hr_a_i_m_group['success_rate']
@@ -634,7 +639,7 @@ def plot_success_rate(experiments, sys_info=None, save=False, folder='analysis',
         # Prepare plot
         d_mr_mm_s_group.drop(d_mr_mm_s, axis='columns', inplace=True)
         Gsm, Dsm, nGsm, nDsm = get_Gsm_Dsm(d_mr_mm_s_group)
-        fig, axs, info_ax, legend_ax, legend_loc = prepare_plot(nGsm, nDsm, 12.8, 4.8, share_axis=True)
+        fig, axs, info_ax, legend_ax, legend_loc, y_title = prepare_plot(nGsm, nDsm, 12.8, 4.8, share_axis=True)
         title, text = prepare_text(dataset, miss_rate, miss_modality, seed, sys_info)
         if verbose: print(title)
 
@@ -652,21 +657,21 @@ def plot_success_rate(experiments, sys_info=None, save=False, folder='analysis',
         if nDsm == 1 or nGsm == 1:  # Only one setting used for the Discriminator
             # Show the influence of different settings for the Generator
             if nDsm == 1:
-                subplot(axs[0], G_success_rate, 'G', legend_ax, Dsm[0][0], Dsm[0][1])
+                subplot(axs[0], G_success_rate, 'G', legend_ax, legend_loc, Dsm[0][0], Dsm[0][1])
 
             # Show the influence of different settings for the Discriminator
             else:  # nGsm == 1
-                subplot(axs[0], D_success_rate, 'D', legend_ax, Gsm[0][0], Gsm[0][1])
+                subplot(axs[0], D_success_rate, 'D', legend_ax, legend_loc, Gsm[0][0], Gsm[0][1])
 
             # Plot system information
             plot_info(axs[1], text, x=0.5)
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Show the influence of different settings for the Generator (ignore Discriminator settings)
-            subplot(axs[0, 0], G_success_rate, 'G', legend_ax, legend_loc=legend_loc)
+            subplot(axs[0, 0], G_success_rate, 'G', legend_ax, legend_loc)
 
             # Show the influence of different settings for the Discriminator (ignore Generator settings)
-            subplot(axs[0, 1], D_success_rate, 'D', legend_ax)
+            subplot(axs[0, 1], D_success_rate, 'D', legend_ax, legend_loc)
 
             # Show the influence of different settings for the Generator for different Discriminator settings
             for i in range(nDsm):
@@ -677,7 +682,7 @@ def plot_success_rate(experiments, sys_info=None, save=False, folder='analysis',
                 G_group.drop(ds + dm, axis='columns', inplace=True)
                 G_success_rate = G_group.groupby(bs_hr_a_i + gs + gm, as_index=False).agg(['count', 'size'])
                 G_success_rate['success_rate'] = G_success_rate['rmse']['count'] / G_success_rate['rmse']['size']
-                subplot(axs[i + 1, 0], G_success_rate, 'G', legend_ax, Dsm[i][0], Dsm[i][1])
+                subplot(axs[i + 1, 0], G_success_rate, 'G', legend_ax, legend_loc, Dsm[i][0], Dsm[i][1])
 
             # Show the influence of different settings for the Discriminator for different Generator settings
             for i in range(nGsm):
@@ -688,13 +693,13 @@ def plot_success_rate(experiments, sys_info=None, save=False, folder='analysis',
                 D_group.drop(gs + gm, axis='columns', inplace=True)
                 D_success_rate = D_group.groupby(bs_hr_a_i + ds + dm, as_index=False).agg(['count', 'size'])
                 D_success_rate['success_rate'] = D_success_rate['rmse']['count'] / D_success_rate['rmse']['size']
-                subplot(axs[i + 1, 1], D_success_rate, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
+                subplot(axs[i + 1, 1], D_success_rate, 'D', legend_ax, legend_loc, Gsm[i][0], Gsm[i][1])
 
             # Plot system information
             plot_info(info_ax, text)
 
         # Plot parameters
-        plt.suptitle(title, size=24)
+        plt.suptitle(title, size=24, y=y_title)
 
         if save:
             if verbose: print(f'Saving plot...')
@@ -732,16 +737,16 @@ def plot_imputation_time(experiments_info, sys_info=None, save=False, folder='an
             group[key]['imputation_time']['s_gain'] += val['imputation_time']['s_gain']
             group[key]['imputation_time']['finalization'] += val['imputation_time']['finalization']
 
-    def subplot(ax, M_imputation_time, M, legend_ax, sparsity='all', modality='settings', legend_loc='upper right'):
+    def subplot(ax, M_imputation_time, M, legend_ax, legend_loc, sparsity='all', modality='settings'):
         """Create a subplot per model setting.
 
         :param ax: the subplot to write to
         :param M_imputation_time: the imputation time group
         :param M: the model this belongs to (Generator or Discriminator)
         :param legend_ax: the subplot to write the legend to
+        :param legend_loc: the location of the legend
         :param sparsity: the sparsity of the other model (optional)
         :param modality: the modality of the other model (optional)
-        :param legend_loc: the location of the legend
 
         :return:
         - y_max: the maximum y value in the plot
@@ -835,12 +840,9 @@ def plot_imputation_time(experiments_info, sys_info=None, save=False, folder='an
 
         # Prepare plot
         Gsm, Dsm, nGsm, nDsm = get_Gsm_Dsm(d_mr_mm_s_group)
-        fig, axs, info_ax, legend_ax, legend_loc = prepare_plot(nGsm, nDsm, 12.8, 4.8, share_axis=True)
+        fig, axs, info_ax, legend_ax, legend_loc, y_title = prepare_plot(nGsm, nDsm, 12.8, 4.8, share_axis=True)
         title, text = prepare_text(dataset, miss_rate, miss_modality, seed, sys_info)
         if verbose: print(title)
-
-        # Plot parameters
-        plt.suptitle(title, size=24)
 
         # Get G_group and D_group
         G_group, D_group = {}, {}
@@ -851,45 +853,45 @@ def plot_imputation_time(experiments_info, sys_info=None, save=False, folder='an
         if nDsm == 1 or nGsm == 1:
             # Show the influence of different settings for the Generator (ignore Discriminator settings)
             if nDsm == 1:
-                y_max = subplot(axs[0], G_group, 'G', legend_ax, Dsm[0][0], Dsm[0][1])
+                y_max = subplot(axs[0], G_group, 'G', legend_ax, legend_loc, Dsm[0][0], Dsm[0][1])
 
             # Show the influence of different settings for the Discriminator (ignore Generator settings)
             else:  # nGsm == 1
-                y_max = subplot(axs[0], D_group, 'D', legend_ax, Gsm[0][0], Gsm[0][1])
+                y_max = subplot(axs[0], D_group, 'D', legend_ax, legend_loc, Gsm[0][0], Gsm[0][1])
 
             # Plot parameters
             axs[0].set_ylim(0, y_max * 1.05)
 
         else:  # Multiple settings used for both the Generator and Discriminator
             # Show the influence of different settings for the Generator (ignore Discriminator settings)
-            y_max = subplot(axs[0, 0], G_group, 'G', legend_ax, legend_loc=legend_loc)
+            y_max = subplot(axs[0, 0], G_group, 'G', legend_ax, legend_loc)
 
             # Show the influence of different settings for the Discriminator (ignore Generator settings)
-            y_max = max(y_max, subplot(axs[0, 1], D_group, 'D', legend_ax))
+            y_max = max(y_max, subplot(axs[0, 1], D_group, 'D', legend_ax, legend_loc))
 
             # Show the influence of different settings for the Generator for different Discriminator settings
             for i in range(nDsm):
                 G_group = {}
                 for key, val in d_mr_mm_s_group.items():
                     if key[6] == Dsm[i][0] and key[7] == Dsm[i][1]: update_group(G_group, key[:6], val)
-                y_max = max(y_max, subplot(axs[i + 1, 0], G_group, 'G', legend_ax, Dsm[i][0], Dsm[i][1]))
+                y_max = max(y_max, subplot(axs[i + 1, 0], G_group, 'G', legend_ax, legend_loc, Dsm[i][0], Dsm[i][1]))
 
             # Show the influence of different settings for the Discriminator for different Generator settings
             for i in range(nGsm):
                 D_group = {}
                 for key, val in d_mr_mm_s_group.items():
                     if key[4] == Gsm[i][0] and key[5] == Gsm[i][1]: update_group(D_group, key[:4] + key[6:], val)
-                y_max = max(y_max, subplot(axs[i + 1, 1], D_group, 'D', legend_ax, Gsm[i][0], Gsm[i][1]))
+                y_max = max(y_max, subplot(axs[i + 1, 1], D_group, 'D', legend_ax, legend_loc, Gsm[i][0], Gsm[i][1]))
 
             # Plot parameters
             for i in range(nDsm + 1): axs[i, 0].set_ylim(0, y_max * 1.05)
             for i in range(nGsm + 1): axs[i, 1].set_ylim(0, y_max * 1.05)
 
         # Plot system information
-        plot_info(info_ax, text)
+        plot_info(info_ax, text, x=0.5)
 
-        # # Plot parameters
-        # plt.suptitle(title, size=24)
+        # Plot parameters
+        plt.suptitle(title, size=24, y=y_title)
 
         if save:
             if verbose: print(f'Saving plot...')
