@@ -148,10 +148,10 @@ def main(args):
 
     if not no_log:
         if no_graph:
-            os.system(f'python log_and_graph.py -fpl {filepath_log} -exp {experiment} -ng'
+            os.system(f'python log_and_graphs.py -fpl {filepath_log} -exp {experiment} -ng'
                       f'{" -nsi" if no_system_information else ""}')
         else:
-            os.system(f'python log_and_graph.py -fpl {filepath_log} -fpg {filepath_graphs} -exp {experiment}'
+            os.system(f'python log_and_graphs.py -fpl {filepath_log} -fpg {filepath_graphs} -exp {experiment}'
                       f'{" -nsi" if no_system_information else ""}')
 
     else:  # Store data to run log_and_graphs.py later
