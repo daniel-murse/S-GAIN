@@ -473,6 +473,24 @@ class Monitor:
             }
         })
 
-        f_model = open(filepath, 'w')
-        f_model.write(model)
-        f_model.close()
+        with open(filepath, 'w') as f_model:
+            f_model.write(model)
+            f_model.close()
+
+    def flush_logs(self):
+        """Flush the log files if opened, to allow running log_and_graphs.py with binary log data.
+        """
+        file_handles = [
+            self.f_RMSE,
+            self.f_imputation_time,
+            self.f_memory_usage,
+            self.f_energy_consumption,
+            self.f_sparsity_G, self.f_sparsity_G_W1, self.f_sparsity_G_W2, self.f_sparsity_G_W3,
+            self.f_sparsity_D, self.f_sparsity_D_W1, self.f_sparsity_D_W2, self.f_sparsity_D_W3,
+            self.f_FLOPs_G, self.f_FLOPs_D,
+            self.f_loss_G, self.f_loss_D, self.f_loss_MSE,
+        ]
+        
+        for fh in file_handles:
+            if fh is not None and not fh.closed:
+                fh.flush()

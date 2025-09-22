@@ -146,18 +146,38 @@ def main(args):
         if verbose: print('Saving imputation...')
         save_imputation(filepath_imputed_data, imputed_data_x)
 
+    # We need to save stuff with the monitor so flush the logs
+    monitor.flush_logs()
+
     if not no_log:
         if no_graph:
-            os.system(f'python log_and_graphs.py -fpl {filepath_log} -exp {experiment} -ng'
-                      f'{" -nsi" if no_system_information else ""}')
+
+            # log_and_graphs.py expects a file "temp/rundata" where its lines are various  positional parameters
+            # for logs and graphs
+            with open('temp/run_data', 'w') as f:
+                f.write(f'{experiment}\n{filepath_imputed_data}\n{filepath_log}\n{"no graphs please?"}\n{filepath_model}')
+                f.close()
+
+            os.system(f'python log_and_graphs.py -ng'
+                      f'{" -nsi" if no_system_information else ""}'
+                      f'{" -v" if verbose else ""}')
         else:
-            os.system(f'python log_and_graphs.py -fpl {filepath_log} -fpg {filepath_graphs} -exp {experiment}'
-                      f'{" -nsi" if no_system_information else ""}')
+
+            # log_and_graphs.py expects a file "temp/rundata" where its lines are various  positional parameters
+            # for logs and graphs
+            with open('temp/run_data', 'w') as f:
+                f.write(f'{experiment}\n{filepath_imputed_data}\n{filepath_log}\n{filepath_graphs}\n{filepath_model}')
+                f.close()
+            
+            os.system(f'python log_and_graphs.py'
+                      f'{" -nsi" if no_system_information else ""}'
+                      f'{" -v" if verbose else ""}')
 
     else:  # Store data to run log_and_graphs.py later
-        f = open('temp/run_data', 'w')
-        f.write(f'{experiment}\n{filepath_imputed_data}\n{filepath_log}\n{filepath_graphs}\n{filepath_model}')
-        f.close()
+        with open('temp/run_data', 'w') as f:
+            f.write(f'{experiment}\n{filepath_imputed_data}\n{filepath_log}\n{filepath_graphs}\n{filepath_model}')
+            f.close()
+            
 
     if not no_model:
         if verbose: print('Saving (trained) model...')

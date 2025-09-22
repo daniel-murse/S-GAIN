@@ -38,9 +38,9 @@ def main(args):
     verbose = args.verbose
 
     # Read run data
-    f = open('temp/run_data', 'r')
-    experiment, filepath_imputed_data, filepath_log, filepath_graphs, _ = f.read().split('\n')
-    f.close()
+    with open('temp/run_data', 'r') as f:
+        experiment, filepath_imputed_data, filepath_log, filepath_graphs, _ = f.read().split('\n')
+        f.close()
 
     # Compile and save the logs
     if verbose: print('Saving logs...')
