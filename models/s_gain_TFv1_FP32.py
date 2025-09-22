@@ -241,9 +241,30 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     if verbose: print('Training S-GAIN...')
 
+    # Grafted random pruning, no regrow
+    # "alpha" taken as a paremeter ("the hyperparameter") might be used for this
+    prune_period = alpha
+
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     for it in tqdm(range(iterations)):
+
+        # Prune after everything
+        if ((it + 1) % prune_period) == 0:
+            if generator_modality != "dense":
+                generator_params = [G_W1, G_W2, G_W3]
+                for param_ref in generator_params:
+                    curr_param = sess.run(param_ref)
+                    mask = np.random.choice([0,1], size=curr_param.shape, p=[generator_sparsity, 1-generator_sparsity])
+                    sess.run(param_ref.assign(curr_param * mask))
+
+            if discriminator_modality != "dense":
+                discriminator_params = [D_W1, D_W2, D_W3]
+                for param_ref in discriminator_params:
+                    curr_param = sess.run(param_ref)
+                    mask = np.random.choice([0,1], size=curr_param.shape, p=[discriminator_sparsity, 1-discriminator_sparsity])
+                    sess.run(param_ref.assign(curr_param * mask))
+
         if monitor:
             monitor.log_imputation_time()
 
@@ -271,6 +292,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
                                                  feed_dict={X: X_mb, M: M_mb, H: H_mb})
 
         if monitor: monitor.log_loss(G_loss_curr, D_loss_curr, MSE_loss_curr)
+        
 
     if monitor:
         monitor.log_imputation_time()
