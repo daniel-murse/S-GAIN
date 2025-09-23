@@ -252,18 +252,57 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         # Prune after everything
         if ((it + 1) % prune_period) == 0:
             if generator_modality != "dense":
+                
                 generator_params = [G_W1, G_W2, G_W3]
                 for param_ref in generator_params:
+                    # prune
                     curr_param = sess.run(param_ref)
-                    mask = np.random.choice([0,1], size=curr_param.shape, p=[generator_sparsity, 1-generator_sparsity])
-                    sess.run(param_ref.assign(curr_param * mask))
+                    # mask = np.random.choice([0,1], size=curr_param.shape, p=[generator_sparsity, 1-generator_sparsity])
+                    # the previous approach (commented above) prunes not taking into account already previously pruned weights.
+
+                    # calculating the probability of pruning given the weight is not pruned yet and the sparsity
+                    # N = total number of weights in the layer
+                    # S = target sparsity (fraction of weights that should be zero)
+                    # A = current number of active weights (non-zero)
+                    # k = number of weights we want to prune in this cycle
+                    # Δ = pruning fraction (todo: find out what this is (maybe the hyperparameter?))
+                    # k= Δ * A
+                    # A = (1-S)*N (if sparsity is respected)
+                    
+                    Δ = 0.2 #TODO: figure this out (also no way you can do this in python)
+
+                    # the filtering of curr_param!=0 gives active weights number of which is A.
+                    curr_param = np.where(curr_param!=0 and np.random.binomial(n=1,p=Δ)==1, 0, curr_param)
+                    # sess.run(param_ref.assign(curr_param * mask))
+
+                    # regrow
+                    regrow_init = 0.1 #needs changing possibly into a function
+
+                    curr_param = np.where(curr_param==0 and np.random.binomial(n=1,p=Δ)==1, regrow_init, curr_param)
+                    
+                    sess.run(param_ref.assign(curr_param))
+                    
+                
 
             if discriminator_modality != "dense":
                 discriminator_params = [D_W1, D_W2, D_W3]
                 for param_ref in discriminator_params:
+                    # prune
                     curr_param = sess.run(param_ref)
-                    mask = np.random.choice([0,1], size=curr_param.shape, p=[discriminator_sparsity, 1-discriminator_sparsity])
-                    sess.run(param_ref.assign(curr_param * mask))
+                    
+                    
+                    Δ = 0.2 #TODO: figure this out (also no way you can do this in python)
+
+                    curr_param = np.where(curr_param!=0 and np.random.binomial(n=1,p=Δ)==1, 0, curr_param)
+                    
+
+                    # regrow
+                    regrow_init = 0.1 #needs changing possibly into a function
+
+                    curr_param = np.where(curr_param==0 and np.random.binomial(n=1,p=Δ)==1, regrow_init, curr_param)
+                    
+                    sess.run(param_ref.assign(curr_param))
+        
 
         if monitor:
             monitor.log_imputation_time()
