@@ -146,7 +146,11 @@ def main(args):
         if verbose: print('Saving imputation...')
         save_imputation(filepath_imputed_data, imputed_data_x)
 
-    # We need to save stuff with the monitor so flush the logs
+    # We need to save stuff with the monitor so flush the logs. We need to do this before running logs_and_graphs, so we need an explicit flush
+    # If running this with --no-log, log_and_graphs is never run from this process, and this process exits, the files are flusehd by the
+    # python runtime/OS exiting, and running log_and_graphs.py will be fine
+    # But if we run this without --no-log, files will not necessarily be up to date, which log_and_graphs requires.
+    # This specifically happened for the G_loss.bin file, causing an out of index exception in log_and_graphs.
     monitor.flush_logs()
 
     if not no_log:

@@ -1,0 +1,12 @@
+DST architecture:
+Do we prune once per period, then let weights regrow (sparsity is lost as inactive (0d, not really inactive) weights can become non zero)?
+Or do we enforce a mask every iteration, and modify the mask every period?
+    Do we prune then regrow a fraction of the mask?
+        Do we regrow from inactive weights, or from inactive and pruned weights?
+
+We noticed np and python is quite slow. Should we use TF for stuff then?
+
+main.py not working without --no-log, monitor file handles flush thing
+
+should we use the TFv2 or TFv1?
+
