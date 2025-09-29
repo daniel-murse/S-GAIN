@@ -19,6 +19,7 @@ import os
 
 import numpy as np
 
+from cache.cache_loader import load_or_generate_data
 from models.s_gain_TFv1_FP32 import s_gain
 from monitors.monitor import Monitor
 from utils.data_loader import data_loader
@@ -124,7 +125,7 @@ def main(args):
         print('Loading data...')
 
     # Load the data with missing elements
-    data_x, miss_data_x, data_mask = data_loader(dataset, miss_rate, miss_modality, seed)
+    data_x, miss_data_x, data_mask = load_or_generate_data(dataset, miss_rate, miss_modality, seed)
 
     # S-GAIN
     monitor = None if no_log and no_model else Monitor(data_x, data_mask, experiment=experiment, verbose=verbose)

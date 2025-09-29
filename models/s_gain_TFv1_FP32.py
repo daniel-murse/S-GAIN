@@ -28,6 +28,9 @@ import tensorflow.compat.v1 as tf
 
 from tqdm import tqdm
 
+from strategies.magnitude_strategy import MagnitudeStrategy
+from strategies.random_strategy import RandomStrategy
+from strategies.strategy import Strategy
 from utils.inits_TFv1_FP32 import normal_xavier_init, random_init, erdos_renyi_init, erdos_renyi_random_weights_init
 from utils.metrics import get_sparsity
 from utils.utils import binary_sampler, uniform_sampler, sample_batch_index, normalization, renormalization, rounding
@@ -243,71 +246,42 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # Grafted random pruning, no regrow
     # "alpha" taken as a paremeter ("the hyperparameter") might be used for this
-    prune_period = alpha
+    prune_period = 100
+
 
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
+    
+    # Initialise the DST strategy
+
+    generator_strategy : Strategy | None = None
+
+    if generator_modality == "random":
+
+        generator_params = [G_W1, G_W2, G_W3]
+
+        generator_strategy = MagnitudeStrategy(0.2, prune_period, generator_params, sess)
+
     for it in tqdm(range(iterations)):
 
-        # Prune after everything
-        if ((it + 1) % prune_period) == 0:
-            if generator_modality != "dense":
-                
-                generator_params = [G_W1, G_W2, G_W3]
-                for param_ref in generator_params:
-                    # prune
-                    curr_param = sess.run(param_ref)
-                    # mask = np.random.choice([0,1], size=curr_param.shape, p=[generator_sparsity, 1-generator_sparsity])
-                    # the previous approach (commented above) prunes not taking into account already previously pruned weights.
+        tW = sess.run(G_W1)
 
-                    # calculating the probability of pruning given the weight is not pruned yet and the sparsity
-                    # N = total number of weights in the layer
-                    # S = target sparsity (fraction of weights that should be zero)
-                    # A = current number of active weights (non-zero)
-                    # k = number of weights we want to prune in this cycle
-                    # Δ = pruning fraction (todo: find out what this is (maybe the hyperparameter?))
-                    # k= Δ * A
-                    # A = (1-S)*N (if sparsity is respected)
+        if(np.isnan(tW).any()):
+                pass
+
+        if generator_strategy is not None:
+            generator_strategy.iteration()
                     
-                    Δ = 0.2 #TODO: figure this out (also no way you can do this in python)
-
-                    # the filtering of curr_param!=0 gives active weights number of which is A.
-                    curr_param = np.where(curr_param!=0 and np.random.binomial(n=1,p=Δ)==1, 0, curr_param)
-                    # sess.run(param_ref.assign(curr_param * mask))
-
-                    # regrow
-                    regrow_init = 0.1 #needs changing possibly into a function
-
-                    curr_param = np.where(curr_param==0 and np.random.binomial(n=1,p=Δ)==1, regrow_init, curr_param)
-                    
-                    sess.run(param_ref.assign(curr_param))
-                    
-                
-
-            if discriminator_modality != "dense":
-                discriminator_params = [D_W1, D_W2, D_W3]
-                for param_ref in discriminator_params:
-                    # prune
-                    curr_param = sess.run(param_ref)
-                    
-                    
-                    Δ = 0.2 #TODO: figure this out (also no way you can do this in python)
-
-                    curr_param = np.where(curr_param!=0 and np.random.binomial(n=1,p=Δ)==1, 0, curr_param)
-                    
-
-                    # regrow
-                    regrow_init = 0.1 #needs changing possibly into a function
-
-                    curr_param = np.where(curr_param==0 and np.random.binomial(n=1,p=Δ)==1, regrow_init, curr_param)
-                    
-                    sess.run(param_ref.assign(curr_param))
-        
-
         if monitor:
             monitor.log_imputation_time()
 
             G_sparsities = get_sparsity(sess.run(theta_G))
+
+            G_W_sparsities = G_sparsities[0:3]
+
+            if 0 in G_W_sparsities:
+                pass
+
             D_sparsities = get_sparsity(sess.run(theta_D))
             monitor.log_sparsity(G_sparsities, D_sparsities)
 
@@ -331,7 +305,9 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
                                                  feed_dict={X: X_mb, M: M_mb, H: H_mb})
 
         if monitor: monitor.log_loss(G_loss_curr, D_loss_curr, MSE_loss_curr)
-        
+
+    if(generator_strategy is not None):  
+        generator_strategy.end_train()
 
     if monitor:
         monitor.log_imputation_time()
