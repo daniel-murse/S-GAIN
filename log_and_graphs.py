@@ -47,7 +47,8 @@ def main(args):
     sys_info = system_information() if not no_system_information else None
     rmse_log, imputation_time_log, memory_usage_log, energy_consumption_log, sparsity_log, sparsity_G_log, \
         sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log, sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, \
-        sparsity_D_W3_log, flops_log, flops_G_log, flops_D_log, loss_G_log, loss_D_log, loss_MSE_log, exp \
+        sparsity_D_W3_log, flops_log, flops_G_log, flops_D_log, loss_G_log, loss_D_log, loss_MSE_log, exp, \
+        clip_log \
         = save_logs(filepath_log, experiment, directory, sys_info)
 
     if not no_graph:
@@ -58,13 +59,13 @@ def main(args):
                     [sparsity_log, sparsity_G_log, sparsity_G_W1_log, sparsity_G_W2_log, sparsity_G_W3_log,
                      sparsity_D_log, sparsity_D_W1_log, sparsity_D_W2_log, sparsity_D_W3_log],
                     [flops_log, flops_G_log, flops_D_log], [loss_G_log, loss_D_log, loss_MSE_log],
-                    experiment=exp, sys_info=sys_info, title=title)
+                    experiment=exp, sys_info=sys_info, title=title, clip_log =clip_log)
 
     if verbose: print('Finished.')
 
 
 def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=None):
-    """Compile and save the logs to a json file.
+    """Compile and save the logs to a json file, including clipping data.
 
     :param filepath: the filepath to save the logs to
     :param experiment: the name of the experiment
@@ -92,10 +93,11 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=Non
     - loss_D: the loss log for the discriminator (cross entropy)
     - loss_MSE: the loss log (MSE)
     - exp: a dictionary containing the experiment
+    - clip: a dictionary containing all clipping data
     """
 
     # Read the log files
-    RMSE = read_bin(f'{directory}/RMSE.bin')
+    RMSE = read_bin(f'{directory}/rmse.bin')
     imputation_time = read_bin(f'{directory}/imputation_time.bin')
     memory_usage = [0]  # read_bin(f'{directory}/memory_usage.bin')
     energy_consumption = []  # read_bin(f'{directory}/energy_consumption.bin')
@@ -112,6 +114,23 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=Non
     loss_G = read_bin(f'{directory}/loss_G.bin')
     loss_D = read_bin(f'{directory}/loss_D.bin')
     loss_MSE = read_bin(f'{directory}/loss_MSE.bin')
+
+    # Read clipping logs
+    clip_G_g = read_bin(f'{directory}/clip_G_g.bin')
+    clip_D_g = read_bin(f'{directory}/clip_D_g.bin')
+    clip_G_mse_loss = read_bin(f'{directory}/clip_G_mse_loss.bin')
+    clip_D_mse_loss = read_bin(f'{directory}/clip_D_mse_loss.bin')
+    clip_G_d_prob = read_bin(f'{directory}/clip_G_d_prob.bin')
+    clip_D_d_prob = read_bin(f'{directory}/clip_D_d_prob.bin')
+
+    clip_dict = {
+        'G_g': clip_G_g,
+        'D_g': clip_D_g,
+        'G_mse_loss': clip_G_mse_loss,
+        'D_mse_loss': clip_D_mse_loss,
+        'G_d_prob': clip_G_d_prob,
+        'D_d_prob': clip_D_d_prob
+    }
 
     # Totals
     sparsity = [(sparsity_G[i] + sparsity_D[i]) / 2 for i in range(len(sparsity_G))]
@@ -142,23 +161,10 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=Non
     if sys_info: logs.update({'system_information': sys_info})
 
     logs.update({
-        'rmse': {
-            'final': RMSE[-1],
-            'log': RMSE,
-        },
-        'imputation_time': {
-            'total': sum(imputation_time),
-            'log': imputation_time
-        },
-        'memory_usage': {
-            'maximum': max(memory_usage),
-            'average': sum(memory_usage) / len(memory_usage),
-            'log': memory_usage
-        },
-        'energy_consumption': {
-            'total': sum(energy_consumption),
-            'log': energy_consumption
-        },
+        'rmse': {'final': RMSE[-1], 'log': RMSE},
+        'imputation_time': {'total': sum(imputation_time), 'log': imputation_time},
+        'memory_usage': {'maximum': max(memory_usage), 'average': sum(memory_usage) / len(memory_usage), 'log': memory_usage},
+        'energy_consumption': {'total': sum(energy_consumption), 'log': energy_consumption},
         'sparsity': {
             'initial': sparsity[0],
             'final': sparsity[-1],
@@ -167,74 +173,30 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=Non
                 'initial': sparsity_G[0],
                 'final': sparsity_G[-1],
                 'log': sparsity_G,
-                'G_W1': {
-                    'initial': sparsity_G_W1[0],
-                    'final': sparsity_G_W1[-1],
-                    'log': sparsity_G_W1
-                },
-                'G_W2': {
-                    'initial': sparsity_G_W2[0],
-                    'final': sparsity_G_W2[-1],
-                    'log': sparsity_G_W2
-                },
-                'G_W3': {
-                    'initial': sparsity_G_W3[0],
-                    'final': sparsity_G_W3[-1],
-                    'log': sparsity_G_W3
-                }
+                'G_W1': {'initial': sparsity_G_W1[0], 'final': sparsity_G_W1[-1], 'log': sparsity_G_W1},
+                'G_W2': {'initial': sparsity_G_W2[0], 'final': sparsity_G_W2[-1], 'log': sparsity_G_W2},
+                'G_W3': {'initial': sparsity_G_W3[0], 'final': sparsity_G_W3[-1], 'log': sparsity_G_W3}
             },
             'discriminator': {
                 'initial': sparsity_D[0],
                 'final': sparsity_D[-1],
                 'log': sparsity_D,
-                'D_W1': {
-                    'initial': sparsity_D_W1[0],
-                    'final': sparsity_D_W1[-1],
-                    'log': sparsity_D_W1
-                },
-                'D_W2': {
-                    'initial': sparsity_D_W2[0],
-                    'final': sparsity_D_W2[-1],
-                    'log': sparsity_D_W2
-                },
-                'D_W3': {
-                    'initial': sparsity_D_W3[0],
-                    'final': sparsity_D_W3[-1],
-                    'log': sparsity_D_W3
-                }
+                'D_W1': {'initial': sparsity_D_W1[0], 'final': sparsity_D_W1[-1], 'log': sparsity_D_W1},
+                'D_W2': {'initial': sparsity_D_W2[0], 'final': sparsity_D_W2[-1], 'log': sparsity_D_W2},
+                'D_W3': {'initial': sparsity_D_W3[0], 'final': sparsity_D_W3[-1], 'log': sparsity_D_W3}
             }
         },
-        'flops': {
-            'total': sum(FLOPs),
-            'log': FLOPs,
-            'generator': {
-                'total': sum(FLOPs_G),
-                'log': FLOPs_G
-            },
-            'discriminator': {
-                'total': sum(FLOPs_D),
-                'log': FLOPs_D
-            }
-        },
+        'flops': {'total': sum(FLOPs), 'log': FLOPs, 'generator': {'total': sum(FLOPs_G), 'log': FLOPs_G},
+                  'discriminator': {'total': sum(FLOPs_D), 'log': FLOPs_D}},
         'loss': {
             'cross_entropy': {
-                'generator': {
-                    'initial': loss_G[0],
-                    'total': loss_G[-1],
-                    'log': loss_G
-                },
-                'discriminator': {
-                    'initial': loss_D[0],
-                    'final': loss_D[-1],
-                    'log': loss_D
-                }
+                'generator': {'initial': loss_G[0], 'total': loss_G[-1], 'log': loss_G},
+                'discriminator': {'initial': loss_D[0], 'final': loss_D[-1], 'log': loss_D}
             },
-            'MSE': {
-                'initial': loss_MSE[0],
-                'final': loss_MSE[-1],
-                'log': loss_MSE
-            }
-        }
+            'MSE': {'initial': loss_MSE[0], 'final': loss_MSE[-1], 'log': loss_MSE}
+        },
+        # New clipping section
+        'clip': clip_dict
     })
 
     f_logs = open(filepath, 'w')
@@ -242,8 +204,8 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=Non
     f_logs.close()
 
     return RMSE, imputation_time, memory_usage, energy_consumption, sparsity, sparsity_G, sparsity_G_W1, \
-        sparsity_G_W2, sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
-        FLOPs_D, loss_G, loss_D, loss_MSE, exp
+           sparsity_G_W2, sparsity_G_W3, sparsity_D, sparsity_D_W1, sparsity_D_W2, sparsity_D_W3, FLOPs, FLOPs_G, \
+           FLOPs_D, loss_G, loss_D, loss_MSE, exp, clip_dict
 
 
 if __name__ == '__main__':

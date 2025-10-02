@@ -87,6 +87,14 @@ class Monitor:
         self.f_FLOPs_G, self.f_FLOPs_D = [None] * 2
         self.f_loss_G, self.f_loss_D, self.f_loss_MSE = [None] * 3
 
+        # Log clipping as well
+        self.f_clip_G_g = None
+        self.f_clip_D_g = None
+        self.f_clip_G_mse_loss = None
+        self.f_clip_D_mse_loss = None
+        self.f_clip_G_d_prob = None 
+        self.f_clip_D_d_prob = None
+
         # Model
         self.G_W1, self.G_W2, self.G_W3, self.G_b1, self.G_b2, self.G_b3 = [None] * 6
         self.D_W1, self.D_W2, self.D_W3, self.D_b1, self.D_b2, self.D_b3 = [None] * 6
@@ -203,6 +211,7 @@ class Monitor:
         self.start_flops_monitor()
         self.start_loss_monitor()
         self.start_rmse_monitor()
+        self.start_clip_monitor()
 
         return True
 
@@ -309,7 +318,8 @@ class Monitor:
 
         return True
 
-    def log_all(self, imputed_data, G_sparsities, D_sparsities, loss_G, loss_D, loss_MSE):
+    def log_all(self, imputed_data, G_sparsities, D_sparsities, loss_G, loss_D, loss_MSE,
+                G_g=None, D_g=None, G_mse_loss=None, D_mse_loss=None, G_d_prob=None, D_d_prob=None):
         """Log the all monitors.
 
         :param imputed_data: The imputed data
@@ -330,6 +340,7 @@ class Monitor:
         self.log_sparsity(G_sparsities, D_sparsities)
         self.log_flops()
         self.log_loss(loss_G, loss_D, loss_MSE)
+        self.log_clip(G_g, D_g, G_mse_loss, D_mse_loss, G_d_prob, D_d_prob)
 
         return True
 
@@ -434,6 +445,7 @@ class Monitor:
         self.stop_energy_consumption_monitor()
         self.stop_sparsity_monitor()
         self.stop_flops_monitor()
+        self.stop_clip_monitor()
 
         if self.verbose: print('Stopped monitors.')
         return False
@@ -489,8 +501,67 @@ class Monitor:
             self.f_sparsity_D, self.f_sparsity_D_W1, self.f_sparsity_D_W2, self.f_sparsity_D_W3,
             self.f_FLOPs_G, self.f_FLOPs_D,
             self.f_loss_G, self.f_loss_D, self.f_loss_MSE,
+
+            self.f_clip_G_g, self.f_clip_D_g,
+            self.f_clip_G_mse_loss, self.f_clip_D_mse_loss,
+            self.f_clip_G_d_prob, self.f_clip_D_d_prob
         ]
         
         for fh in file_handles:
             if fh is not None and not fh.closed:
                 fh.flush()
+
+        # Start clipping monitors
+    def start_clip_monitor(self):
+        """Open the clipping log files and start monitoring.
+
+        :return: True
+        """
+        self.f_clip_G_g = open(f'{self.directory}/clip_G_g.bin', 'ab')
+        self.f_clip_D_g = open(f'{self.directory}/clip_D_g.bin', 'ab')
+        self.f_clip_G_mse_loss = open(f'{self.directory}/clip_G_mse_loss.bin', 'ab')
+        self.f_clip_D_mse_loss = open(f'{self.directory}/clip_D_mse_loss.bin', 'ab')
+        self.f_clip_G_d_prob = open(f'{self.directory}/clip_G_d_prob.bin', 'ab')
+        self.f_clip_D_d_prob = open(f'{self.directory}/clip_D_d_prob.bin', 'ab')
+
+        if self.verbose: print('Monitoring clipping...')
+        return True
+
+    # Log clipping
+    def log_clip(self, G_g=None, D_g=None, G_mse_loss=None, D_mse_loss=None, G_d_prob=None, D_d_prob=None):
+        """Log the clipping values as fractions of the clipped parameters.
+
+        :param G_g: fraction (0-1) of gradients clipped in the generator
+        :param D_g: fraction (0-1) of gradients clipped in the discriminator
+        :param G_mse_loss: fraction (0-1) indicating a boolean of whether the MSE loss was clipped for the generator. Pretty much always false.
+        :param D_mse_loss: fraction (0-1) indicating a boolean of whether the MSE loss was clipped for the discriminator. Pretty much always false.
+        :param G_d_prob: fraction (0-1) of discriminator feature probabilities clipped for generator
+        :param D_d_prob: fraction (0-1) of discriminator feature probabilities clipped for discriminator
+
+        :return: True
+        """
+        
+        if G_g is not None: self.f_clip_G_g.write(struct.pack('f', G_g))
+        if D_g is not None: self.f_clip_D_g.write(struct.pack('f', D_g))
+        if G_mse_loss is not None: self.f_clip_G_mse_loss.write(struct.pack('f', G_mse_loss))
+        if D_mse_loss is not None: self.f_clip_D_mse_loss.write(struct.pack('f', D_mse_loss))
+        if G_d_prob is not None: self.f_clip_G_d_prob.write(struct.pack('f', G_d_prob))
+        if D_d_prob is not None: self.f_clip_D_d_prob.write(struct.pack('f', D_d_prob))
+
+        return True
+
+    # Stop clipping monitors
+    def stop_clip_monitor(self):
+        """Close the clipping log files and stop monitoring.
+
+        :return: False
+        """
+        self.f_clip_G_g.close()
+        self.f_clip_D_g.close()
+        self.f_clip_G_mse_loss.close()
+        self.f_clip_D_mse_loss.close()
+        self.f_clip_G_d_prob.close()
+        self.f_clip_D_d_prob.close()
+
+        if self.verbose: print('Stopped monitoring clipping.')
+        return False

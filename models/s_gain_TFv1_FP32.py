@@ -28,6 +28,7 @@ import tensorflow.compat.v1 as tf
 
 from tqdm import tqdm
 
+from monitors.monitor import Monitor
 from strategies.magnitude_strategy import MagnitudeStrategy
 from strategies.random_strategy import RandomStrategy
 from strategies.strategy import Strategy
@@ -215,6 +216,17 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # -- S-GAIN structure ---------------------------------------------------------------------------------------------
 
+    # Flags for adjusting the training loop
+
+    # Should NANs in tensorflow be detected?
+    detect_nans = True
+    # Should we clip the NN outputs and losses to avoid NANs?
+    use_clipping = False
+    # Clip scale threshold hyperparameter for gradient clipping
+    clip_norm = 1.0
+    log_clipping = True and use_clipping
+    # todo add epsilon constants for clipping
+
     # Generator
     G_sample = generator(X, M)
 
@@ -225,10 +237,37 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     D_prob = discriminator(Hat_X, H)
 
     ## GAIN loss
-    D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob + 1e-8) + (1 - M) * tf.log(1. - D_prob + 1e-8))
-    G_loss_temp = -tf.reduce_mean((1 - M) * tf.log(D_prob + 1e-8))
 
-    MSE_loss = tf.reduce_mean((M * X - M * G_sample) ** 2) / tf.reduce_mean(M)
+    # Set TF nodes for clipping
+    if use_clipping:
+        # Clip discriminator probabilities to avoid log(0)
+        D_prob_clipped = tf.clip_by_value(D_prob, 1e-7, 1 - 1e-7)
+        # Boolean flags for logging if clipping occurred
+        if log_clipping:
+            D_prob_clipped_flags = tf.logical_or(D_prob < 1e-7, D_prob > 1 - 1e-7)
+
+            # Percentage of clipped probabilities for feature discrimination
+            D_prob_clipped_percentage = tf.reduce_mean(tf.cast(D_prob_clipped_flags, tf.float32))
+
+        # Compute MSE loss without division by zero. But, we are sure this is not an issue
+        # And this denominator is never 0 even without the epsilon
+        mse_denom = tf.reduce_mean(M) + 1e-8
+        if log_clipping:
+            mse_clipped_flag = tf.less(tf.reduce_mean(M), 1e-8)
+
+            # We will treat this as a percentage for logging with the monitor
+            mse_clipped_percentage = tf.cast(mse_clipped_flag, tf.float32)
+        MSE_loss = tf.reduce_mean((M * X - M * G_sample) ** 2) / mse_denom
+
+        # Compute GAN losses
+        D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob_clipped) + (1 - M) * tf.log(1. - D_prob_clipped))
+        G_loss_temp = -tf.reduce_mean((1 - M) * tf.log(D_prob_clipped))
+
+    # Else keep the original tf nodes
+    else:
+        D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob + 1e-8) + (1 - M) * tf.log(1. - D_prob + 1e-8))
+        G_loss_temp = -tf.reduce_mean((1 - M) * tf.log(D_prob + 1e-8))
+        MSE_loss = tf.reduce_mean((M * X - M * G_sample) ** 2) / tf.reduce_mean(M)
 
     D_loss = D_loss_temp
     G_loss = G_loss_temp + alpha * MSE_loss
@@ -237,8 +276,40 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # -- S-GAIN solver ------------------------------------------------------------------------------------------------
 
-    D_solver = tf.train.AdamOptimizer().minimize(D_loss, var_list=theta_D)
-    G_solver = tf.train.AdamOptimizer().minimize(G_loss, var_list=theta_G)
+    # We explicitly create the optimisers and solvers to capture the gradients for checking NANs
+
+    D_optimizer = tf.train.AdamOptimizer()
+    G_optimizer = tf.train.AdamOptimizer()
+
+    D_grads_and_vars = D_optimizer.compute_gradients(D_loss, var_list=theta_D)
+    G_grads_and_vars = G_optimizer.compute_gradients(G_loss, var_list=theta_G)
+
+    # Clip the gradients and vars if using clipping
+    if use_clipping:
+        # Compute norms before clipping so we can check if clipping occurred
+        D_grad_norms = [tf.norm(g) for g, v in D_grads_and_vars if g is not None]
+        G_grad_norms = [tf.norm(g) for g, v in G_grads_and_vars if g is not None]
+
+        # Boolean flags for whether clipping happened
+        if log_clipping:
+            # Did any weight matrix get clipped; tihs is not how many parameters (weights) get clipped
+            # its how many variables (weight matrices) contain parameters that got clipped
+            # its why its constant in the graph
+            # todo arghh we could calculate this as a % of weights per variable 
+            D_clipped_flags = [tf.greater(n, clip_norm) for n in D_grad_norms]
+            G_clipped_flags = [tf.greater(n, clip_norm) for n in G_grad_norms]
+
+            # TF operations to calculate the percentage of gradients clipped
+            D_clipped_percentage = tf.reduce_mean(tf.cast(D_clipped_flags, tf.float32))
+            G_clipped_percentage = tf.reduce_mean(tf.cast(G_clipped_flags, tf.float32))
+
+
+        # Apply clipping
+        D_grads_and_vars = [(tf.clip_by_norm(g, clip_norm), v) for g, v in D_grads_and_vars if g is not None]
+        G_grads_and_vars = [(tf.clip_by_norm(g, clip_norm), v) for g, v in G_grads_and_vars if g is not None]
+        
+    D_solver = D_optimizer.apply_gradients(D_grads_and_vars)
+    G_solver = G_optimizer.apply_gradients(G_grads_and_vars)
 
     # -- S-GAIN training ----------------------------------------------------------------------------------------------
 
@@ -300,9 +371,58 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         # Combine random vectors with observed vectors
         X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb
 
-        _, D_loss_curr = sess.run([D_solver, D_loss_temp], feed_dict={M: M_mb, X: X_mb, H: H_mb})
-        _, G_loss_curr, MSE_loss_curr = sess.run([G_solver, G_loss_temp, MSE_loss],
+        # As we run D and G, we also may get clipping data for logging
+        fetches = [D_solver, D_loss_temp, [g for g, v in D_grads_and_vars]]
+        if(use_clipping and log_clipping and monitor is not None): fetches.extend([D_clipped_percentage, D_prob_clipped_percentage, mse_clipped_percentage])
+
+        _, D_loss_curr, D_grads, *D_optional = sess.run(fetches, feed_dict={M: M_mb, X: X_mb, H: H_mb})
+        
+        fetches = [G_solver, G_loss_temp, MSE_loss, [g for g in G_grads_and_vars]]
+        if(use_clipping and log_clipping and monitor is not None): fetches.extend([G_clipped_percentage, D_prob_clipped_percentage, mse_clipped_percentage])
+
+        _, G_loss_curr, MSE_loss_curr, G_grads, *G_optional = sess.run(fetches,
                                                  feed_dict={X: X_mb, M: M_mb, H: H_mb})
+        
+        if use_clipping and log_clipping:
+            D_clipping = D_optional[0]
+            G_clipping = G_optional[0]
+
+            if monitor is not None:
+                monitor.log_clip(G_optional[0], D_optional[0], G_optional[2], D_optional[2], G_optional[1], D_optional[1])
+
+            # # Check and print indices where clipping occurred
+            # clipped_d_indices = [i for i, val in enumerate(D_optional) if val > 0]
+            # clipped_g_indices = [i for i, val in enumerate(G_optional) if val > 0]
+
+            # if clipped_d_indices or clipped_g_indices:
+            #     print(f"[Clipping] occurred at iter {it}")
+            #     if clipped_d_indices:
+            #         print(f"  D_optional clipped at indices: {clipped_d_indices}")
+            #     if clipped_g_indices:
+            #         print(f"  G_optional clipped at indices: {clipped_g_indices}")
+
+         # Detect NANs if set
+        if detect_nans:
+            has_nans = False
+            if (np.isnan(D_loss_curr) or np.isnan(G_loss_curr) or np.isnan(MSE_loss_curr)):
+                has_nans = True
+                print(f"[NaN DETECTED] losses at iter {it}: "
+                    f"D_loss={D_loss_curr}, G_loss={G_loss_curr}, MSE={MSE_loss_curr}")
+
+            for g in D_grads + G_grads:
+                if np.isnan(g).any():
+                    has_nans = True
+                    print(f"[NaN DETECTED] gradient at iter {it}")
+                    break
+
+            for param in sess.run(theta_D + theta_G):
+                if np.isnan(param).any():
+                    has_nans = True
+                    print(f"[NaN DETECTED] weights at iter {it}")
+                    break
+            
+            if has_nans:
+                break
 
         if monitor: monitor.log_loss(G_loss_curr, D_loss_curr, MSE_loss_curr)
 
