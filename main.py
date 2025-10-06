@@ -95,6 +95,8 @@ def main(args):
             return sparsity, 'ERRW'
         elif modality in ('erkrw', 'erdos_renyi_kernel_random_weight'):
             return sparsity, 'ERKRW'
+        elif modality in ('grasp'):
+            return sparsity, 'GraSP'
         return None
 
     generator_sparsity, generator_modality = sparsity_modality(generator_sparsity, generator_modality)
@@ -104,7 +106,7 @@ def main(args):
 
     # Exit program if a modality is not implemented yet Todo: implement the modalities
     not_implemented = ['MAR', 'MNAR', 'ERK', 'erdos_renyi_kernel', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP',
-                       'GRASP', 'RSensitivity']
+                       'RSensitivity']
     if miss_modality in not_implemented:
         print(f'Miss modality {miss_modality} is not implemented. Exiting program...')
         return None

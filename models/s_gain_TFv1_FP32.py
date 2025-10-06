@@ -29,6 +29,7 @@ import tensorflow.compat.v1 as tf
 from tqdm import tqdm
 
 from monitors.monitor import Monitor
+from strategies.grasp_strategy import GraspStrategy
 from strategies.magnitude_strategy import MagnitudeStrategy
 from strategies.random_strategy import RandomStrategy
 from strategies.strategy import Strategy
@@ -97,7 +98,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     H = tf.placeholder(tf.float32, shape=[None, dim])  # Hint vector
 
     # Generator variables: Data + Mask as inputs (Random noise is in missing components)
-    if generator_modality in ('dense', 'random'):
+    if generator_modality in ('dense', 'random', 'GraSP'):
         G_W1 = normal_xavier_init([dim * 2, h_dim])
         G_W2 = normal_xavier_init([h_dim, h_dim])
         G_W3 = normal_xavier_init([h_dim, dim])
@@ -125,7 +126,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         return None
 
     elif generator_modality == 'GraSP':
-        return None
+        print("Using GraSP") # Do not return None
 
     elif generator_modality == 'RSensitivity':
         return None
@@ -146,7 +147,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     theta_G = [G_W1, G_W2, G_W3, G_b1, G_b2, G_b3]
 
     # Discriminator variables: Data + Hint as inputs
-    if discriminator_modality in ('dense', 'random'):
+    if discriminator_modality in ('dense', 'random', 'GraSP'):
         D_W1 = normal_xavier_init([dim * 2, h_dim])
         D_W2 = normal_xavier_init([h_dim, h_dim])
         D_W3 = normal_xavier_init([h_dim, dim])
@@ -242,6 +243,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     if use_clipping:
         # Clip discriminator probabilities to avoid log(0)
         D_prob_clipped = tf.clip_by_value(D_prob, 1e-7, 1 - 1e-7)
+        # D_prob_clipped = D_prob_clipped # disables clipping the probability entirely
         # Boolean flags for logging if clipping occurred
         if log_clipping:
             D_prob_clipped_flags = tf.logical_or(D_prob < 1e-7, D_prob > 1 - 1e-7)
@@ -258,7 +260,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
             # We will treat this as a percentage for logging with the monitor
             mse_clipped_percentage = tf.cast(mse_clipped_flag, tf.float32)
         MSE_loss = tf.reduce_mean((M * X - M * G_sample) ** 2) / mse_denom
-
+        # TODO ADD INSTEAD OF CLIP
         # Compute GAN losses
         D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob_clipped) + (1 - M) * tf.log(1. - D_prob_clipped))
         G_loss_temp = -tf.reduce_mean((1 - M) * tf.log(D_prob_clipped))
@@ -331,14 +333,38 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
         generator_params = [G_W1, G_W2, G_W3]
 
-        generator_strategy = MagnitudeStrategy(0.2, prune_period, generator_params, sess)
+        generator_strategy = RandomStrategy(0.2, prune_period, generator_params, sess)
+
+    elif generator_modality == "GraSP":
+
+        generator_params = [G_W1, G_W2, G_W3]
+
+        # Map G weights to G weight gradients. Remember they are symbolic tensors
+        G_W_vars_and_grads = { v : g for g, v in G_grads_and_vars if v in generator_params }
+
+        # Sample batch
+        # NOTE This seems to sample batches randomly instead of sequentially using shuffled data
+        batch_idx = sample_batch_index(no, batch_size)
+        X_mb = norm_data_x[batch_idx, :]
+        M_mb = data_mask[batch_idx, :]
+
+        # Sample random vectors
+        Z_mb = uniform_sampler(0, 0.01, batch_size, dim)
+
+        # Sample hint vectors
+        H_mb_temp = binary_sampler(hint_rate, batch_size, dim)
+        H_mb = M_mb * H_mb_temp
+
+        # Combine random vectors with observed vectors
+        X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb
+
+        feed_dict = {M: M_mb, X: X_mb, H: H_mb}
+
+        # Create the grasp strategy. Note: whether to periodically recompute the grasp mask,
+        # and if so, whether to use a differend feed_dict (batch) for grasp scores or the same one
+        generator_strategy = GraspStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
 
     for it in tqdm(range(iterations)):
-
-        tW = sess.run(G_W1)
-
-        if(np.isnan(tW).any()):
-                pass
 
         if generator_strategy is not None:
             generator_strategy.iteration()
@@ -347,16 +373,11 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
             monitor.log_imputation_time()
 
             G_sparsities = get_sparsity(sess.run(theta_G))
-
-            G_W_sparsities = G_sparsities[0:3]
-
-            if 0 in G_W_sparsities:
-                pass
-
             D_sparsities = get_sparsity(sess.run(theta_D))
             monitor.log_sparsity(G_sparsities, D_sparsities)
 
         # Sample batch
+        # NOTE This seems to sample batches randomly instead of sequentially using shuffled data
         batch_idx = sample_batch_index(no, batch_size)
         X_mb = norm_data_x[batch_idx, :]
         M_mb = data_mask[batch_idx, :]
@@ -377,6 +398,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
         _, D_loss_curr, D_grads, *D_optional = sess.run(fetches, feed_dict={M: M_mb, X: X_mb, H: H_mb})
         
+
         fetches = [G_solver, G_loss_temp, MSE_loss, [g for g in G_grads_and_vars]]
         if(use_clipping and log_clipping and monitor is not None): fetches.extend([G_clipped_percentage, D_prob_clipped_percentage, mse_clipped_percentage])
 
