@@ -75,10 +75,10 @@ class GraspStrategy(Strategy):
         weights = list(self.vars_and_grads.keys())
         grads = [self.vars_and_grads[w] for w in weights]
 
-        # Declare the gradient dot product gradient for a subcalculation of Hg
+        # Declare the pythagoras of gradients for a subcalculation of Hg
         grad_dot = tf.add_n([tf.reduce_sum(g * g) for g in grads])
 
-        # Compute hessian gradient product Hg
+        # Compute hessian gradient product Hg as an approximation
         Hg = tf.gradients(grad_dot, weights)
 
         # Compute grasp scores: -g * Hg (elementwise, hadammard product)
