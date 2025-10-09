@@ -1,0 +1,16 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "random",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "args": "spam --miss_rate 0.2 --miss_modality MCAR --seed 0 --batch_size 128 --hint_rate 0.9 --alpha 100 --iterations 10000 --generator_sparsity 0 --generator_modality grasp --discriminator_sparsity 0 --discriminator_modality dense --folder output"
+        }
+    ]
+}

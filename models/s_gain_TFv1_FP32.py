@@ -24,6 +24,7 @@ Paper Link: https://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 """
 
 import numpy as np
+from strategies.snip_strategy import SnipStrategy
 import tensorflow.compat.v1 as tf
 
 from tqdm import tqdm
@@ -362,7 +363,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
         # Create the grasp strategy. Note: whether to periodically recompute the grasp mask,
         # and if so, whether to use a differend feed_dict (batch) for grasp scores or the same one
-        generator_strategy = GraspStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
+        generator_strategy = SnipStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
 
     for it in tqdm(range(iterations)):
 

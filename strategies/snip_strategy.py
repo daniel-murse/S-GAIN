@@ -2,7 +2,7 @@ import numpy as np
 from strategies.strategy import Strategy
 import tensorflow.compat.v1 as tf
 
-class GraspStrategy(Strategy):
+class SnipStrategy(Strategy):
     def __init__(self, fraction, period, vars_and_grads, sess, feed_dict) -> None:
         self.fraction = fraction
         self.period = period
@@ -86,7 +86,7 @@ class GraspStrategy(Strategy):
         
         # The SNIP normalization constant
         # sum for all k |gk(w;Db)|
-        snip_norm = tf.reduce_sum(tf.add_n(list(snip_scores_dict.values())))
+        snip_norm = tf.add_n(tf.reduce_sum(s) for s in snip_scores_dict.values())
         
         # apply the normalization
         for w, g in zip(weights, grads):
