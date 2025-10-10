@@ -49,7 +49,7 @@ class SnipStrategy(Strategy):
             if(self.is_first_period):
                 self.is_first_period = False
             else:
-                self.prune_and_regrow_masks()
+                self.calculate_snip_mask()
 
         # enforce the mask
         
@@ -101,15 +101,3 @@ class SnipStrategy(Strategy):
             threshold = np.percentile(score, self.fraction * 100)
             new_mask = (score > threshold).astype(np.float32)
             self.sess.run(mask.assign(new_mask))
-
-
-    def prune_and_regrow_masks(self):
-        for Wtf, Mtf in self.masks.items():
-            # Get current weights and masks as numpy arrays
-            W = self.sess.run(Wtf)
-            M = self.sess.run(Mtf)
-
-            # Nothing here now
-
-            # Assign back to TensorFlow variables
-            self.sess.run([Wtf.assign(W), Mtf.assign(M)])
