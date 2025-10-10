@@ -88,10 +88,6 @@ class Monitor:
         self.f_loss_G, self.f_loss_D, self.f_loss_MSE = [None] * 3
 
         # Log clipping as well
-        self.f_clip_G_g = None
-        self.f_clip_D_g = None
-        self.f_clip_G_mse_loss = None
-        self.f_clip_D_mse_loss = None
         self.f_clip_G_d_prob = None 
         self.f_clip_D_d_prob = None
 
@@ -319,7 +315,7 @@ class Monitor:
         return True
 
     def log_all(self, imputed_data, G_sparsities, D_sparsities, loss_G, loss_D, loss_MSE,
-                G_g=None, D_g=None, G_mse_loss=None, D_mse_loss=None, G_d_prob=None, D_d_prob=None):
+                G_d_prob=None, D_d_prob=None):
         """Log the all monitors.
 
         :param imputed_data: The imputed data
@@ -340,7 +336,7 @@ class Monitor:
         self.log_sparsity(G_sparsities, D_sparsities)
         self.log_flops()
         self.log_loss(loss_G, loss_D, loss_MSE)
-        self.log_clip(G_g, D_g, G_mse_loss, D_mse_loss, G_d_prob, D_d_prob)
+        self.log_clip(G_d_prob, D_d_prob)
 
         return True
 
@@ -502,8 +498,6 @@ class Monitor:
             self.f_FLOPs_G, self.f_FLOPs_D,
             self.f_loss_G, self.f_loss_D, self.f_loss_MSE,
 
-            self.f_clip_G_g, self.f_clip_D_g,
-            self.f_clip_G_mse_loss, self.f_clip_D_mse_loss,
             self.f_clip_G_d_prob, self.f_clip_D_d_prob
         ]
         
@@ -517,10 +511,6 @@ class Monitor:
 
         :return: True
         """
-        self.f_clip_G_g = open(f'{self.directory}/clip_G_g.bin', 'ab')
-        self.f_clip_D_g = open(f'{self.directory}/clip_D_g.bin', 'ab')
-        self.f_clip_G_mse_loss = open(f'{self.directory}/clip_G_mse_loss.bin', 'ab')
-        self.f_clip_D_mse_loss = open(f'{self.directory}/clip_D_mse_loss.bin', 'ab')
         self.f_clip_G_d_prob = open(f'{self.directory}/clip_G_d_prob.bin', 'ab')
         self.f_clip_D_d_prob = open(f'{self.directory}/clip_D_d_prob.bin', 'ab')
 
@@ -528,7 +518,7 @@ class Monitor:
         return True
 
     # Log clipping
-    def log_clip(self, G_g=None, D_g=None, G_mse_loss=None, D_mse_loss=None, G_d_prob=None, D_d_prob=None):
+    def log_clip(self, G_d_prob=None, D_d_prob=None):
         """Log the clipping values as fractions of the clipped parameters.
 
         :param G_g: fraction (0-1) of gradients clipped in the generator
@@ -541,10 +531,6 @@ class Monitor:
         :return: True
         """
         
-        if G_g is not None: self.f_clip_G_g.write(struct.pack('f', G_g))
-        if D_g is not None: self.f_clip_D_g.write(struct.pack('f', D_g))
-        if G_mse_loss is not None: self.f_clip_G_mse_loss.write(struct.pack('f', G_mse_loss))
-        if D_mse_loss is not None: self.f_clip_D_mse_loss.write(struct.pack('f', D_mse_loss))
         if G_d_prob is not None: self.f_clip_G_d_prob.write(struct.pack('f', G_d_prob))
         if D_d_prob is not None: self.f_clip_D_d_prob.write(struct.pack('f', D_d_prob))
 
@@ -556,10 +542,7 @@ class Monitor:
 
         :return: False
         """
-        self.f_clip_G_g.close()
-        self.f_clip_D_g.close()
-        self.f_clip_G_mse_loss.close()
-        self.f_clip_D_mse_loss.close()
+        
         self.f_clip_G_d_prob.close()
         self.f_clip_D_d_prob.close()
 

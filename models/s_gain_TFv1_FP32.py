@@ -34,7 +34,7 @@ from strategies.grasp_strategy import GraspStrategy
 from strategies.magnitude_strategy import MagnitudeStrategy
 from strategies.random_strategy import RandomStrategy
 from strategies.strategy import Strategy
-from utils.inits_TFv1_FP32 import normal_xavier_init, random_init, erdos_renyi_init, erdos_renyi_random_weights_init
+from utils.inits_TFv1_FP32 import magnitude_init, normal_xavier_init, random_init, erdos_renyi_init, erdos_renyi_random_weights_init
 from utils.metrics import get_sparsity
 from utils.utils import binary_sampler, uniform_sampler, sample_batch_index, normalization, renormalization, rounding
 
@@ -99,13 +99,15 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     H = tf.placeholder(tf.float32, shape=[None, dim])  # Hint vector
 
     # Generator variables: Data + Mask as inputs (Random noise is in missing components)
-    if generator_modality in ('dense', 'random', 'GraSP'):
+    if generator_modality in ('dense', 'random', 'GraSP', 'SNIP', 'magnitude'):
         G_W1 = normal_xavier_init([dim * 2, h_dim])
         G_W2 = normal_xavier_init([h_dim, h_dim])
         G_W3 = normal_xavier_init([h_dim, dim])
 
         if generator_modality == 'random':
             G_W1, G_W2, G_W3 = random_init([G_W1, G_W2, G_W3], generator_sparsity)
+        elif generator_modality == "magnitude":
+            G_W1, G_W2, G_W3 = magnitude_init([G_W1, G_W2, G_W3], generator_sparsity)
 
     elif generator_modality in ('ER', 'ERK', 'ERRW', 'ERKRW'):
         G_Ws = {
@@ -122,12 +124,6 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
             G_W1, G_W2, G_W3 = erdos_renyi_random_weights_init(G_Ws, generator_sparsity).values()
         else:  # ERKRW
             return None
-
-    elif generator_modality == 'SNIP':
-        return None
-
-    elif generator_modality == 'GraSP':
-        print("Using GraSP") # Do not return None
 
     elif generator_modality == 'RSensitivity':
         return None
@@ -175,9 +171,6 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     elif discriminator_modality == 'SNIP':
         return None
 
-    elif discriminator_modality == 'GraSP':
-        return None
-
     elif discriminator_modality == 'RSensitivity':
         return None
 
@@ -223,9 +216,8 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     # Should NANs in tensorflow be detected?
     detect_nans = True
     # Should we clip the NN outputs and losses to avoid NANs?
-    use_clipping = False
-    # Clip scale threshold hyperparameter for gradient clipping
-    clip_norm = 1.0
+    use_clipping = True
+    # If we should check for clipping
     log_clipping = True and use_clipping
     # todo add epsilon constants for clipping
 
@@ -243,8 +235,10 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     # Set TF nodes for clipping
     if use_clipping:
         # Clip discriminator probabilities to avoid log(0)
+        # We can either tf.clip_by_value(D_prob, 1e-7, 1 - 1e-7) or add 1e-8 in the loss functions inside the logs maybe
         D_prob_clipped = tf.clip_by_value(D_prob, 1e-7, 1 - 1e-7)
         # D_prob_clipped = D_prob_clipped # disables clipping the probability entirely
+
         # Boolean flags for logging if clipping occurred
         if log_clipping:
             D_prob_clipped_flags = tf.logical_or(D_prob < 1e-7, D_prob > 1 - 1e-7)
@@ -252,16 +246,11 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
             # Percentage of clipped probabilities for feature discrimination
             D_prob_clipped_percentage = tf.reduce_mean(tf.cast(D_prob_clipped_flags, tf.float32))
 
-        # Compute MSE loss without division by zero. But, we are sure this is not an issue
-        # And this denominator is never 0 even without the epsilon
-        mse_denom = tf.reduce_mean(M) + 1e-8
-        if log_clipping:
-            mse_clipped_flag = tf.less(tf.reduce_mean(M), 1e-8)
-
-            # We will treat this as a percentage for logging with the monitor
-            mse_clipped_percentage = tf.cast(mse_clipped_flag, tf.float32)
+        # We used to clip this, but now no more as it is not needed.
+        mse_denom = tf.reduce_mean(M)
+        
         MSE_loss = tf.reduce_mean((M * X - M * G_sample) ** 2) / mse_denom
-        # TODO ADD INSTEAD OF CLIP
+
         # Compute GAN losses
         D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob_clipped) + (1 - M) * tf.log(1. - D_prob_clipped))
         G_loss_temp = -tf.reduce_mean((1 - M) * tf.log(D_prob_clipped))
@@ -287,29 +276,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     D_grads_and_vars = D_optimizer.compute_gradients(D_loss, var_list=theta_D)
     G_grads_and_vars = G_optimizer.compute_gradients(G_loss, var_list=theta_G)
 
-    # Clip the gradients and vars if using clipping
-    if use_clipping:
-        # Compute norms before clipping so we can check if clipping occurred
-        D_grad_norms = [tf.norm(g) for g, v in D_grads_and_vars if g is not None]
-        G_grad_norms = [tf.norm(g) for g, v in G_grads_and_vars if g is not None]
-
-        # Boolean flags for whether clipping happened
-        if log_clipping:
-            # Did any weight matrix get clipped; tihs is not how many parameters (weights) get clipped
-            # its how many variables (weight matrices) contain parameters that got clipped
-            # its why its constant in the graph
-            # todo arghh we could calculate this as a % of weights per variable 
-            D_clipped_flags = [tf.greater(n, clip_norm) for n in D_grad_norms]
-            G_clipped_flags = [tf.greater(n, clip_norm) for n in G_grad_norms]
-
-            # TF operations to calculate the percentage of gradients clipped
-            D_clipped_percentage = tf.reduce_mean(tf.cast(D_clipped_flags, tf.float32))
-            G_clipped_percentage = tf.reduce_mean(tf.cast(G_clipped_flags, tf.float32))
-
-
-        # Apply clipping
-        D_grads_and_vars = [(tf.clip_by_norm(g, clip_norm), v) for g, v in D_grads_and_vars if g is not None]
-        G_grads_and_vars = [(tf.clip_by_norm(g, clip_norm), v) for g, v in G_grads_and_vars if g is not None]
+    # No longer clip gradients
         
     D_solver = D_optimizer.apply_gradients(D_grads_and_vars)
     G_solver = G_optimizer.apply_gradients(G_grads_and_vars)
@@ -320,7 +287,9 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # Grafted random pruning, no regrow
     # "alpha" taken as a paremeter ("the hyperparameter") might be used for this
-    prune_period = 100
+    # never prune
+
+    prune_period = 1000000
 
 
     sess = tf.Session()
@@ -330,18 +299,21 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     generator_strategy : Strategy | None = None
 
+    generator_weights = [G_W1, G_W2, G_W3]
+
+    # strategy intentionally None if modality is dense or otherwise
+
     if generator_modality == "random":
 
-        generator_params = [G_W1, G_W2, G_W3]
+        generator_strategy = RandomStrategy(0.2, prune_period, generator_weights, sess)
+    elif generator_modality == "magnitude":
 
-        generator_strategy = RandomStrategy(0.2, prune_period, generator_params, sess)
-
-    elif generator_modality == "GraSP":
-
-        generator_params = [G_W1, G_W2, G_W3]
+        generator_strategy = MagnitudeStrategy(0.2, prune_period, generator_weights, sess)
+        
+    elif generator_modality in ("GraSP", "SNIP"):
 
         # Map G weights to G weight gradients. Remember they are symbolic tensors
-        G_W_vars_and_grads = { v : g for g, v in G_grads_and_vars if v in generator_params }
+        G_W_vars_and_grads = { v : g for g, v in G_grads_and_vars if v in generator_weights }
 
         # Sample batch
         # NOTE This seems to sample batches randomly instead of sequentially using shuffled data
@@ -359,11 +331,16 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         # Combine random vectors with observed vectors
         X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb
 
+        # This is the batch used for GraSP or SNIP
         feed_dict = {M: M_mb, X: X_mb, H: H_mb}
 
         # Create the grasp strategy. Note: whether to periodically recompute the grasp mask,
         # and if so, whether to use a differend feed_dict (batch) for grasp scores or the same one
-        generator_strategy = SnipStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
+        if generator_modality == "GraSP":
+            generator_strategy = GraspStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
+        else:
+            generator_strategy = SnipStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
+
 
     for it in tqdm(range(iterations)):
 
@@ -394,35 +371,22 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb
 
         # As we run D and G, we also may get clipping data for logging
-        fetches = [D_solver, D_loss_temp, [g for g, v in D_grads_and_vars]]
-        if(use_clipping and log_clipping and monitor is not None): fetches.extend([D_clipped_percentage, D_prob_clipped_percentage, mse_clipped_percentage])
+        fetches = [D_solver, D_loss_temp]
+        if(use_clipping and log_clipping and monitor is not None): fetches.extend([D_prob_clipped_percentage])
 
-        _, D_loss_curr, D_grads, *D_optional = sess.run(fetches, feed_dict={M: M_mb, X: X_mb, H: H_mb})
+        _, D_loss_curr, *D_optional = sess.run(fetches, feed_dict={M: M_mb, X: X_mb, H: H_mb})
         
 
-        fetches = [G_solver, G_loss_temp, MSE_loss, [g for g in G_grads_and_vars]]
-        if(use_clipping and log_clipping and monitor is not None): fetches.extend([G_clipped_percentage, D_prob_clipped_percentage, mse_clipped_percentage])
+        fetches = [G_solver, G_loss_temp, MSE_loss]
+        if(use_clipping and log_clipping and monitor is not None): fetches.extend([D_prob_clipped_percentage])
 
-        _, G_loss_curr, MSE_loss_curr, G_grads, *G_optional = sess.run(fetches,
+        _, G_loss_curr, MSE_loss_curr, *G_optional = sess.run(fetches,
                                                  feed_dict={X: X_mb, M: M_mb, H: H_mb})
         
         if use_clipping and log_clipping:
-            D_clipping = D_optional[0]
-            G_clipping = G_optional[0]
 
             if monitor is not None:
-                monitor.log_clip(G_optional[0], D_optional[0], G_optional[2], D_optional[2], G_optional[1], D_optional[1])
-
-            # # Check and print indices where clipping occurred
-            # clipped_d_indices = [i for i, val in enumerate(D_optional) if val > 0]
-            # clipped_g_indices = [i for i, val in enumerate(G_optional) if val > 0]
-
-            # if clipped_d_indices or clipped_g_indices:
-            #     print(f"[Clipping] occurred at iter {it}")
-            #     if clipped_d_indices:
-            #         print(f"  D_optional clipped at indices: {clipped_d_indices}")
-            #     if clipped_g_indices:
-            #         print(f"  G_optional clipped at indices: {clipped_g_indices}")
+                monitor.log_clip(G_optional[0], D_optional[0])
 
          # Detect NANs if set
         if detect_nans:
@@ -432,19 +396,9 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
                 print(f"[NaN DETECTED] losses at iter {it}: "
                     f"D_loss={D_loss_curr}, G_loss={G_loss_curr}, MSE={MSE_loss_curr}")
 
-            for g in D_grads + G_grads:
-                if np.isnan(g).any():
-                    has_nans = True
-                    print(f"[NaN DETECTED] gradient at iter {it}")
-                    break
-
-            for param in sess.run(theta_D + theta_G):
-                if np.isnan(param).any():
-                    has_nans = True
-                    print(f"[NaN DETECTED] weights at iter {it}")
-                    break
-            
             if has_nans:
+                # TODO add log_nans or something to the monitor?
+                print("Breaking...")
                 break
 
         if monitor: monitor.log_loss(G_loss_curr, D_loss_curr, MSE_loss_curr)

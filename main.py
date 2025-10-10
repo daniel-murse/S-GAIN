@@ -19,7 +19,6 @@ import os
 
 import numpy as np
 
-from cache.cache_loader import load_or_generate_data
 from models.s_gain_TFv1_FP32 import s_gain
 from monitors.monitor import Monitor
 from utils.data_loader import data_loader
@@ -87,6 +86,8 @@ def main(args):
             return 0, 'dense'
         elif modality == 'random':
             return sparsity, modality
+        elif modality == 'magnitude':
+            return sparsity, modality
         elif modality in ('er', 'erdos_renyi'):
             return sparsity, 'ER'
         elif modality in ('erk', 'erdos_renyi_kernel'):
@@ -97,6 +98,8 @@ def main(args):
             return sparsity, 'ERKRW'
         elif modality in ('grasp'):
             return sparsity, 'GraSP'
+        elif modality in ('snip'):
+            return sparsity, 'snip'
         return None
 
     generator_sparsity, generator_modality = sparsity_modality(generator_sparsity, generator_modality)
@@ -127,7 +130,7 @@ def main(args):
         print('Loading data...')
 
     # Load the data with missing elements
-    data_x, miss_data_x, data_mask = load_or_generate_data(dataset, miss_rate, miss_modality, seed)
+    data_x, miss_data_x, data_mask = data_loader(dataset, miss_rate, miss_modality, seed)
 
     # S-GAIN
     monitor = None if no_log and no_model else Monitor(data_x, data_mask, experiment=experiment, verbose=verbose)
@@ -249,7 +252,7 @@ if __name__ == '__main__':
         help='the initialization and pruning and regrowth strategy of the generator',
         choices=['dense', 'random', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
                  'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
-                 'RSensitivity'],
+                 'RSensitivity', 'magnitude'],
         default='dense',
         type=str)
     parser.add_argument(

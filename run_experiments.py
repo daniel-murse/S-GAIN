@@ -46,20 +46,20 @@ Values with Sparse Initialization", IDEAL conference, 2025.
 # n_runs = 10
 
 # Settings
-datasets = ['health', 'fashion_mnist']  # ['spam', 'letter', 'health', 'mnist', 'fashion_mnist', 'cifar10']
+datasets = ['spam']
 miss_rates = [0.2]
-miss_modalities = ['MCAR']  # ['MCAR', 'MAR', 'MNAR']
+miss_modalities = ['MCAR']
 seeds = [0]
 batch_sizes = [128]
 hint_rates = [0.9]
 alphas = [100]
 iterations_s = [10000]
-generator_sparsities = [0, 0.6, 0.8, 0.9, 0.95, 0.99]
-generator_modalities = ['dense', 'random']  # ['dense', 'random', 'ER', 'ERRW']
-discriminator_sparsities = [0, 0.2, 0.4, 0.6, 0.8]
-discriminator_modalities = ['dense', 'random']  # ['dense', 'random', 'ER', 'ERRW']
-output_folder = 'output'  # Default: 'output'
-n_runs = 5
+generator_sparsities = [0, 0.6, 0.8, 0.9, 0.99]
+generator_modalities = ['dense'] #+ ['random', 'magnitude', 'GraSP', 'SNIP', 'ER', 'ERRW']
+discriminator_sparsities = [0]
+discriminator_modalities = ['dense']
+n_runs = 10
+output_folder = 'output_run_experiments'  # Default: 'output'
 ignore_existing_files = False  # Default: False
 retry_failed_experiments = True  # Default: True
 loop_until_complete = True  # Only works when retry_failed_experiments = True and ignore_existing_files = False
@@ -71,7 +71,7 @@ no_save = False  # Default: False
 no_system_information = False  # Default: False
 analyze = True  # Automatically analyze the experiments after completion
 analysis_folder = 'analysis'  # Default: 'analysis'
-auto_shutdown = True  # Default: False
+auto_shutdown = False  # Default: False
 
 
 def update_experiments():

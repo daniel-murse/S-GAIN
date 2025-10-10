@@ -66,6 +66,24 @@ def random_init(tensors, sparsity):
         tensors[i] = tensor * mask
     return tensors
 
+def magnitude_init(tensors, sparsity):
+    """Magnitude initialization.
+
+    :param tensors: the tensors to apply sparsity on
+    :param sparsity: the level of sparsity [0,1)
+
+    :return:
+    - initialized pruned tensors by weight magnitude
+    """
+
+    for i in range(len(tensors)):
+        tensor = tensors[i]
+        magnitudes = np.abs(tensor).flatten()
+        threshold = np.percentile(magnitudes, sparsity * 100)
+        mask = (np.abs(tensor) > threshold).astype(tensor.dtype)
+        tensors[i] = tensor * mask
+    return tensors
+
 
 def erdos_renyi_init(tensors, sparsity, erk_power_scale=1.0):
     """Erdos Renyi initialization.

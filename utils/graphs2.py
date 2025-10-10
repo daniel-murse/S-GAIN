@@ -375,23 +375,21 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
 
     # Plot clipping logs
     if clip_log:
-        clip_G_g, clip_D_g, clip_G_mse_loss, clip_D_mse_loss, clip_G_d_prob, clip_D_d_prob = clip_log.values()
+        clip_G_d_prob, clip_D_d_prob = clip_log['G_d_prob'], clip_log['D_d_prob']
+        clip_iterations = range(len(clip_G_d_prob))
 
         # Plot each curve
-        axs[index].plot(clip_G_g, label='Generator gradient clipping', color='tab:blue')
-        axs[index].plot(clip_D_g, label='Discriminator gradient clipping', color='tab:red')
-        axs[index].plot(clip_G_mse_loss, label='Generator MSE loss clipping', color='tab:cyan')
-        axs[index].plot(clip_D_mse_loss, label='Discriminator MSE loss clipping', color='tab:orange')
         # There are many discriminated features and the percentage of clipped features is very low
         # when clipping is present so this boolean conversion makes it more visible
-        axs[index].plot([1 if (v > 0) else 0 for v in clip_G_d_prob], label='Generator D prob clipping boolean', color='tab:green')
-        axs[index].plot([1 if (v > 0) else 0 for v in clip_D_d_prob], label='Discriminator D prob clipping boolean', color='tab:purple')
+        axs[index].scatter(clip_iterations, [1 if (v > 0) else 0 for v in clip_G_d_prob], label='Generator D prob clipping boolean', color='tab:green')
+        axs[index].scatter(clip_iterations, [1 if (v > 0) else 0 for v in clip_D_d_prob], label='Discriminator D prob clipping boolean', color='tab:purple')
 
         axs[index].set_title('Clipping fractions per iteration for TF variables', size=16)
         axs[index].set_ylabel('Clipping (0-1)', size=13)
         axs[index].set_xlabel('Iteration', size=13)
-        axs[index].set_xlim(0, len(clip_G_g) - 1)
-        axs[index].set_ylim(0, 1)
+        axs[index].set_xlim(0, len(clip_G_d_prob) - 1)
+        # y limit is bigger to give space around the points, like padding on the graph
+        axs[index].set_ylim(-0.1, 1.1)
         axs[index].tick_params(labelsize=12)
         axs[index].legend(fontsize=12)
         axs[index].grid(True)

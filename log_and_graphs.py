@@ -116,18 +116,10 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=Non
     loss_MSE = read_bin(f'{directory}/loss_MSE.bin')
 
     # Read clipping logs
-    clip_G_g = read_bin(f'{directory}/clip_G_g.bin')
-    clip_D_g = read_bin(f'{directory}/clip_D_g.bin')
-    clip_G_mse_loss = read_bin(f'{directory}/clip_G_mse_loss.bin')
-    clip_D_mse_loss = read_bin(f'{directory}/clip_D_mse_loss.bin')
     clip_G_d_prob = read_bin(f'{directory}/clip_G_d_prob.bin')
     clip_D_d_prob = read_bin(f'{directory}/clip_D_d_prob.bin')
 
     clip_dict = {
-        'G_g': clip_G_g,
-        'D_g': clip_D_g,
-        'G_mse_loss': clip_G_mse_loss,
-        'D_mse_loss': clip_D_mse_loss,
         'G_d_prob': clip_G_d_prob,
         'D_d_prob': clip_D_d_prob
     }
