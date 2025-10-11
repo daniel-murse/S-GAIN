@@ -78,10 +78,29 @@ def magnitude_init(tensors, sparsity):
 
     for i in range(len(tensors)):
         tensor = tensors[i]
-        magnitudes = np.abs(tensor).flatten()
-        threshold = np.percentile(magnitudes, sparsity * 100)
-        mask = (np.abs(tensor) > threshold).astype(tensor.dtype)
-        tensors[i] = tensor * mask
+
+        magnitudes = tf.abs(tensor)
+        flat = tf.reshape(magnitudes, [-1])
+        
+        # Sort magnitudes
+        sorted_mags = tf.sort(flat)
+        
+        # Find threshold index (weight at the sparsity percentile for its magnitude)
+        # Declare the number of elements in the tensor as a tf node
+        num_elements = tf.size(sorted_mags)
+        # Get the index which splits the sorted weights into weights to prune or keep, by multiplying sparsity and element count
+        threshold_index = tf.cast(tf.floor(sparsity * tf.cast(num_elements, tf.float32)), tf.int32)
+        # Clip index in array range in case of floating point errors
+        threshold_index = tf.clip_by_value(threshold_index, 0, num_elements - 1)
+        
+        # Get the value of the threshold
+        threshold = sorted_mags[threshold_index]
+        
+        # Create mask (values greater than the threshold value)
+        mask = tf.cast(tf.greater(magnitudes, threshold), tensor.dtype)
+        
+        # Apply mask
+        tensors[i] = (tensor * mask)
     return tensors
 
 

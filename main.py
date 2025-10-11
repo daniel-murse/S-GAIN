@@ -99,7 +99,7 @@ def main(args):
         elif modality in ('grasp'):
             return sparsity, 'GraSP'
         elif modality in ('snip'):
-            return sparsity, 'snip'
+            return sparsity, 'SNIP'
         return None
 
     generator_sparsity, generator_modality = sparsity_modality(generator_sparsity, generator_modality)
@@ -108,7 +108,7 @@ def main(args):
     if seed is None: seed = np.random.randint(2 ** 31)
 
     # Exit program if a modality is not implemented yet Todo: implement the modalities
-    not_implemented = ['MAR', 'MNAR', 'ERK', 'erdos_renyi_kernel', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP',
+    not_implemented = ['MAR', 'MNAR', 'ERK', 'erdos_renyi_kernel', 'ERKRW', 'erdos_renyi_kernel_random_weight',
                        'RSensitivity']
     if miss_modality in not_implemented:
         print(f'Miss modality {miss_modality} is not implemented. Exiting program...')
