@@ -43,7 +43,9 @@ tf.disable_v2_behavior()
 
 def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=10000,
            generator_sparsity=0, generator_modality='dense', discriminator_sparsity=0, discriminator_modality='dense',
-           verbose=False, no_model=True, monitor=None):
+           verbose=False, no_model=True, monitor=None,
+            generator_regrowth_strategy="static", generator_regrowth_fraction=0, generator_regrowth_period=200, generator_regrowth_decay="none"
+           ):
     """Impute the missing values in miss_data_x.
 
     :param miss_data_x: the data with missing values
@@ -309,7 +311,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     elif generator_modality == "magnitude":
 
         generator_strategy = MagnitudeStrategy(0.2, prune_period, generator_weights, sess)
-        
+
     elif generator_modality in ("GraSP", "SNIP"):
 
         # Map G weights to G weight gradients. Remember they are symbolic tensors

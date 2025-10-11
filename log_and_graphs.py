@@ -131,7 +131,8 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=Non
     logs, exp = {}, None
     if experiment is not None:
         dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity, \
-            generator_modality, discriminator_sparsity, discriminator_modality \
+            generator_modality, discriminator_sparsity, discriminator_modality, \
+            generator_regrowth_strategy, generator_regrowth_fraction, generator_regrowth_period, generator_regrowth_decay \
             = parse_experiment(experiment, file=False)
 
         exp = {
@@ -146,7 +147,12 @@ def save_logs(filepath, experiment=None, directory='temp/exp_bins', sys_info=Non
             'generator_sparsity': generator_sparsity,
             'generator_modality': generator_modality,
             'discriminator_sparsity': discriminator_sparsity,
-            'discriminator_modality': discriminator_modality
+            'discriminator_modality': discriminator_modality,
+            'generator_regrowth_strategy' : generator_regrowth_strategy,
+            'generator_regrowth_fraction' : generator_regrowth_fraction,
+            'generator_regrowth_period' : generator_regrowth_period,
+            'generator_regrowth_decay' : generator_regrowth_decay
+
         }
         logs.update({'experiment': exp})
 

@@ -39,8 +39,8 @@ def extract_log_info(logs, input_folder='output'):
     exps = {}
     for log in logs:
         # Parse the experiment
-        d, mr, mm, s, bs, hr, a, i, gs, gm, ds, dm, _, _, _ = parse_experiment(log, file=True)
-        experiment = (d, mr, mm, s, bs, hr, a, i, gs, gm, ds, dm)
+        d, mr, mm, s, bs, hr, a, i, gs, gm, grs, grf, grp, grd, ds, dm, _, _, _ = parse_experiment(log, file=True)
+        experiment = (d, mr, mm, s, bs, hr, a, i, gs, gm, grs, grf, grp, grd, ds, dm)
 
         # Read the log
         f = open(f'{input_folder}/{log}', 'r')

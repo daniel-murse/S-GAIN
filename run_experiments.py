@@ -46,7 +46,7 @@ Values with Sparse Initialization", IDEAL conference, 2025.
 # n_runs = 10
 
 # Settings
-datasets = ['spam', 'letter', 'health', 'fashion_mnist']
+datasets = ['spam'] # fashion_mnist very slow to train
 miss_rates = [0.2]
 miss_modalities = ['MCAR']
 seeds = [0]
@@ -54,12 +54,16 @@ batch_sizes = [128]
 hint_rates = [0.9]
 alphas = [100]
 iterations_s = [10000]
-generator_sparsities = [0, 0.6, 0.8, 0.9, 0.95, 0.99]
-generator_modalities = ['dense'] + ['random', 'magnitude', 'GraSP', 'SNIP']
+generator_sparsities = [0, 0.6]
+generator_modalities = ['dense', 'random', 'magnitude']
+generator_regrowth_strategies = ['static', 'random', 'magnitude']
+generator_regrowth_fractions = [0, 0.2, 0.3, 0.5]
+generator_regrowth_periods = [100, 200]
+generator_regrowth_decays = ['none', 'cosine']
 discriminator_sparsities = [0]
 discriminator_modalities = ['dense']
 n_runs = 10
-output_folder = 'output_run_experiments'  # Default: 'output'
+output_folder = 'trash'  # Default: 'output'
 ignore_existing_files = False  # Default: False
 retry_failed_experiments = True  # Default: True
 loop_until_complete = True  # Only works when retry_failed_experiments = True and ignore_existing_files = False
@@ -87,7 +91,9 @@ def update_experiments():
         discriminator_modalities=discriminator_modalities, folder=output_folder, n_runs=n_runs,
         ignore_existing_files=ignore_existing_files, retry_failed_experiments=retry_failed_experiments,
         verbose=verbose, no_log=True, no_graph=True, no_model=no_model, no_save=no_save,
-        no_system_information=no_system_information, get_commands=True
+        no_system_information=no_system_information, get_commands=True,
+        generator_regrowth_strategies=generator_regrowth_strategies, generator_regrowth_fractions=generator_regrowth_fractions,
+        generator_regrowth_periods = generator_regrowth_periods, generator_regrowth_decays = generator_regrowth_decays
     )
 
 

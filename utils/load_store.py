@@ -127,6 +127,7 @@ def parse_experiment(experiment, file=False):
     if file: experiment = experiment.rsplit('.', 1)[0]
 
     # Parse experiment
+    # NOTE Parsing a field splits on the next marker
     _, rest = experiment.split('S-GAIN_')
     dataset, rest = rest.split('_MR_')
     miss_rate, rest = rest.split('_MM_')
@@ -144,7 +145,15 @@ def parse_experiment(experiment, file=False):
     iterations = int(iterations)
     generator_sparsity, rest = rest.split('_GM_')
     generator_sparsity = float(generator_sparsity)
-    generator_modality, rest = rest.split('_DS_')
+    generator_modality, rest = rest.split('_GRS_')
+
+    generator_regrowth_strategy, rest = rest.split('_GRF_')
+    generator_regrowth_fraction, rest = rest.split('_GRP_')
+    generator_regrowth_fraction = float(generator_regrowth_fraction)
+    generator_regrowth_period, rest = rest.split('_GRD_')
+    generator_regrowth_period = float(generator_regrowth_period)
+    generator_regrowth_decay, rest = rest.split('_DS_')
+
     discriminator_sparsity, rest = rest.split('_DM_')
     discriminator_sparsity = float(discriminator_sparsity)
 
@@ -173,13 +182,15 @@ def parse_experiment(experiment, file=False):
                 index = 0
                 filetype = rests[1]
 
-        return dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity, \
-            generator_modality, discriminator_sparsity, discriminator_modality, rmse, index, filetype
+        return dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity, generator_modality, \
+            generator_regrowth_strategy, generator_regrowth_fraction, generator_regrowth_period, generator_regrowth_decay, \
+            discriminator_sparsity, discriminator_modality, rmse, index, filetype
     else:
         discriminator_modality = rest
 
-        return dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, \
-            generator_sparsity, generator_modality, discriminator_sparsity, discriminator_modality
+        return dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity, generator_modality, \
+            generator_regrowth_strategy, generator_regrowth_fraction, generator_regrowth_period, generator_regrowth_decay, \
+            discriminator_sparsity, discriminator_modality
 
 
 def parse_files(files=None, filepath='output', filetype=None):
@@ -201,7 +212,8 @@ def parse_files(files=None, filepath='output', filetype=None):
     files = [file for file in files if file]
 
     header = ['dataset', 'miss_rate', 'miss_modality', 'seed', 'batch_size', 'hint_rate', 'alpha', 'iterations',
-              'generator_sparsity', 'generator_modality', 'discriminator_sparsity', 'discriminator_modality', 'rmse',
+              'generator_sparsity', 'generator_modality', 'generator_regrowth_strategy', 'generator_regrowth_fraction', 'generator_regrowth_period', 'generator_regrowth_decay',
+              'discriminator_sparsity', 'discriminator_modality', 'rmse',
               'index', 'filetype']
 
     if filetype: files = [file for file in files if file[-1] == filetype]
@@ -273,7 +285,8 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
                     discriminator_sparsities=None, discriminator_modalities=None, folder='output', n_runs=10,
                     ignore_existing_files=False, retry_failed_experiments=True, include=None, exclude=None,
                     verbose=False, no_log=False, no_graph=False, no_model=False, no_save=False,
-                    no_system_information=False, get_commands=False):
+                    no_system_information=False, get_commands=False,
+                    generator_regrowth_strategies=None, generator_regrowth_fractions=None, generator_regrowth_periods=None, generator_regrowth_decays=None):
     """Get a dictionary (or a list of strings) of the experiments to run.
 
     :param datasets: which datasets to use
@@ -318,6 +331,11 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
     if generator_modalities is None: generator_modalities = ['dense', 'random', 'ER', 'ERRW']
     if discriminator_sparsities is None: discriminator_sparsities = [0]
     if discriminator_modalities is None: discriminator_modalities = ['dense']
+
+    if generator_regrowth_strategies is None: generator_regrowth_strategies = ['static']
+    if generator_regrowth_periods is None: generator_regrowth_periods = [200]
+    if generator_regrowth_fractions is None: generator_regrowth_fractions = [0.3]
+    if generator_regrowth_decays is None: generator_regrowth_decays = ['cosine']
 
     # Standardization
     def sparsities_modalities(sparsities, modalities):
@@ -365,17 +383,36 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
             for sparsity in sparsities if sparsity > 0
             for modality in modalities if modality in ('ERKRW', 'erdos_renyi_kernel_random_weight')
         ]
-        # TODO allow running snip and grasp
         return sparsity_modality
-
+    
+    def regrowths_for_sparsity_modality(sparsity_modality, strategies, fractions, periods, decays):
+        sparse_regrowth = [
+            (sparsity, modality, 'static', 0, 0, 0)
+            for strategy in strategies if strategy == 'static'
+            for sparsity, modality in sparsity_modality
+        ]
+        sparse_regrowth += [
+            (sparsity, modality, strategy, fraction, period, decay)
+            for decay in decays if decay in ('none', 'cosine')
+            for period in periods if period > 0
+            for fraction in fractions if fraction > 0
+            for strategy in strategies if strategy in ('random', 'magnitude')
+            for sparsity, modality in sparsity_modality
+        ]
+    
+        return sparse_regrowth
+    
     generator_sparsity_modality = sparsities_modalities(generator_sparsities, generator_modalities)
     discriminator_sparsity_modality = sparsities_modalities(discriminator_sparsities, discriminator_modalities)
+
+    generator_params = regrowths_for_sparsity_modality(generator_sparsity_modality, generator_regrowth_strategies, generator_regrowth_fractions, generator_regrowth_periods, generator_regrowth_decays)
 
     # Get the experiments
     experiments = {}
     experiments.update({
-        (dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity,
-         generator_modality, discriminator_sparsity, discriminator_modality): n_runs
+        (dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity, generator_modality,
+        generator_regrowth_strategy, generator_regrowth_fraction, generator_regrowth_period, generator_regrowth_decay,
+        discriminator_sparsity, discriminator_modality): n_runs
         for dataset in datasets
         for miss_rate in miss_rates
         for miss_modality in miss_modalities
@@ -384,7 +421,7 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
         for hint_rate in hint_rates
         for alpha in alphas
         for iterations in iterations_s
-        for generator_sparsity, generator_modality in generator_sparsity_modality
+        for generator_sparsity, generator_modality, generator_regrowth_strategy, generator_regrowth_fraction, generator_regrowth_period, generator_regrowth_decay in generator_params
         for discriminator_sparsity, discriminator_modality in discriminator_sparsity_modality
     })
 
@@ -421,13 +458,17 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
             f'python main.py {dataset} --miss_rate {miss_rate} --miss_modality {miss_modality} --seed {seed} '
             f'--batch_size {batch_size} --hint_rate {hint_rate} --alpha {alpha} --iterations {iterations} '
             f'--generator_sparsity {generator_sparsity} --generator_modality {generator_modality} '
+            f'--generator_regrowth_strategy {generator_regrowth_strategy} --generator_regrowth_fraction {generator_regrowth_fraction}'
+            f'--generator_regrowth_period {generator_regrowth_period} --generator_regrwoth_decay {generator_regrowth_decay}'
             f'--discriminator_sparsity {discriminator_sparsity} --discriminator_modality {discriminator_modality} '
             f'--folder {folder}{" --verbose" if verbose else ""}{" --no_log" if no_log else ""}'
             f'{" --no_graph" if no_graph else ""}{" --no_model" if no_model else ""}{" --no_save" if no_save else ""}'
             f'{" --no_system_information" if no_system_information else ""}'
 
             for [dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations, generator_sparsity,
-                 generator_modality, discriminator_sparsity, discriminator_modality], n in experiments.items()
+                 generator_modality,
+                 generator_regrowth_strategy, generator_regrowth_fraction, generator_regrowth_period, generator_regrowth_decay,
+                 discriminator_sparsity, discriminator_modality], n in experiments.items()
             for _ in range(n)
         ]
         return commands

@@ -47,6 +47,10 @@ gs = ['generator_sparsity']
 gm = ['generator_modality']
 ds = ['discriminator_sparsity']
 dm = ['discriminator_modality']
+grs = ['generator_regrowth_strategy']
+grf = ['generator_regrowth_fraction']
+grp = ['generator_regrowth_period']
+grd = ['generator_regrowth_decay']
 
 
 def get_Gsm_Dsm(d_mr_mm_s_group):

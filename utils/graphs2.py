@@ -162,11 +162,16 @@ def plot_graphs(filepath, rmse_log=None, imputation_time_log=None, memory_usage_
             iterations = f'Iterations: {experiment["iterations"]}'
             generator_sparsity = f'Generator sparsity: {experiment["generator_sparsity"]}'
             generator_modality = f'Generator modality: {experiment["generator_modality"]}'
+            generator_regrowth_strategy = f'Generator regrowth strategy: {experiment["generator_regrowth_strategy"]}'
+            generator_regrowth_fraction = f'Generator regrowth fraction: {experiment["generator_regrowth_fraction"]}'
+            generator_regrowth_period = f'Generator regrowth period: {experiment["generator_regrowth_period"]}'
+            generator_regrowth_decay = f'Generator regrowth decay: {experiment["generator_regrowth_decay"]}'
             discriminator_sparsity = f'Discriminator sparsity: {experiment["discriminator_sparsity"]}'
             discriminator_modality = f'Discriminator modality: {experiment["discriminator_modality"]}'
 
             text += [exp, dataset, miss_rate, miss_modality, seed, batch_size, hint_rate, alpha, iterations,
-                     generator_sparsity, generator_modality, discriminator_sparsity, discriminator_modality, ' ']
+                     generator_sparsity, generator_modality, generator_regrowth_strategy, generator_regrowth_fraction, generator_regrowth_period, generator_regrowth_decay,
+                     discriminator_sparsity, discriminator_modality, ' ']
 
         if sys_info: text += sys_info
 

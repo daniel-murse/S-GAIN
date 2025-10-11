@@ -70,6 +70,12 @@ def main(args):
     iterations = args.iterations
     generator_sparsity = args.generator_sparsity
     generator_modality = args.generator_modality.lower()
+
+    generator_regrowth_strategy = args.generator_regrow_strategy.lower()
+    generator_regrowth_period = args.generator_regrow_period
+    generator_regrowth_fraction = args.generator_regrow_fraction
+    generator_regrowth_decay = args.generator_regrow_decay.lower()
+
     discriminator_sparsity = args.discriminator_sparsity
     discriminator_modality = args.discriminator_modality.lower()
     folder = args.folder
@@ -121,8 +127,10 @@ def main(args):
         return None
 
     # Name the experiment
+    # NOTE this is used by log_and_graphs.py to parse the parameters of the experiment
     experiment = f'S-GAIN_{dataset}_MR_{miss_rate}_MM_{miss_modality}_S_0x{seed:08x}_BS_{batch_size}_HR_{hint_rate}' \
                  f'_a_{alpha}_i_{iterations}_GS_{generator_sparsity}_GM_{generator_modality}' \
+                 f'_GRS_{generator_regrowth_strategy}_GRF_{generator_regrowth_fraction}_GRP_{generator_regrowth_period}_GRD_{generator_regrowth_decay}' \
                  f'_DS_{discriminator_sparsity}_DM_{discriminator_modality}'
 
     if verbose:
@@ -138,7 +146,8 @@ def main(args):
         miss_data_x, batch_size=batch_size, hint_rate=hint_rate, alpha=alpha, iterations=iterations,
         generator_sparsity=generator_sparsity, generator_modality=generator_modality,
         discriminator_sparsity=discriminator_sparsity, discriminator_modality=discriminator_modality,
-        verbose=verbose, no_model=no_model, monitor=monitor
+        verbose=verbose, no_model=no_model, monitor=monitor,
+        generator_regrowth_strategy=generator_regrowth_strategy, generator_regrowth_fraction=generator_regrowth_fraction, generator_regrowth_period=generator_regrowth_period, generator_regrowth_decay=generator_regrowth_decay
     )
 
     # Calculate the RMSE
@@ -249,12 +258,36 @@ if __name__ == '__main__':
         type=float)
     parser.add_argument(
         '-gm', '--generator_modality',
-        help='the initialization and pruning and regrowth strategy of the generator',
+        help='the static initialization strategy of the generator',
         choices=['dense', 'random', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
                  'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
                  'RSensitivity', 'magnitude'],
         default='dense',
         type=str)
+    parser.add_argument(
+        '-grs', '--generator_regrow_strategy',
+        help='the dynamic regrow/pruning strategy of the generator',
+        choices=['static', 'random', 'magnitude', 'grasp', 'magnitude'],
+        default='static'
+    )
+    parser.add_argument(
+        '-grf', '--generator_regrow_fraction',
+        help='the fraction of weights to regrow for dynamic regrowth for the generator',
+        type=float,
+        default=0.3
+    )
+    parser.add_argument(
+        '-grp', '--generator_regrow_period',
+        help='the dynamic regrow/pruning period for the generator',
+        type=int,
+        default=200
+    )
+    parser.add_argument(
+        '-grd', '--generator_regrow_decay',
+        help='the dynamic regrow/pruning decay the generator',
+        choices=['none', 'cosine'],
+        default='cosine'
+    )
     parser.add_argument(
         '-ds', '--discriminator_sparsity',
         help='thee probability of sparsity in the discriminator',
