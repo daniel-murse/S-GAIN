@@ -100,6 +100,8 @@ def main(args):
             return sparsity, 'GraSP'
         elif modality in ('snip'):
             return sparsity, 'SNIP'
+        elif modality in ('random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay'):
+            return sparsity, modality
         return None
 
     generator_sparsity, generator_modality = sparsity_modality(generator_sparsity, generator_modality)

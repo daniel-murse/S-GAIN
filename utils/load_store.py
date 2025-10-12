@@ -346,6 +346,11 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
             for modality in modalities if modality == 'SNIP'
         ]
         sparsity_modality += [
+            (sparsity, modality) for sparsity in sparsities if sparsity > 0
+            for modality in modalities if modality in ('random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay')
+            # TODO NOTE can have a prefix check for modality here instead of an equality check to allow carrying over information to the s-gain function
+        ]
+        sparsity_modality += [
             (sparsity, 'ER')
             for sparsity in sparsities if sparsity > 0
             for modality in modalities if modality in ('ER', 'erdos_renyi')
@@ -365,7 +370,6 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
             for sparsity in sparsities if sparsity > 0
             for modality in modalities if modality in ('ERKRW', 'erdos_renyi_kernel_random_weight')
         ]
-        # TODO allow running snip and grasp
         return sparsity_modality
 
     generator_sparsity_modality = sparsities_modalities(generator_sparsities, generator_modalities)

@@ -46,7 +46,7 @@ Values with Sparse Initialization", IDEAL conference, 2025.
 # n_runs = 10
 
 # Settings
-datasets = ['spam', 'letter', 'health', 'fashion_mnist']
+datasets = ['spam', 'letter', 'health']
 miss_rates = [0.2]
 miss_modalities = ['MCAR']
 seeds = [0]
@@ -55,7 +55,7 @@ hint_rates = [0.9]
 alphas = [100]
 iterations_s = [10000]
 generator_sparsities = [0, 0.6, 0.8, 0.9, 0.95, 0.99]
-generator_modalities = ['dense'] + ['random', 'magnitude', 'GraSP', 'SNIP']
+generator_modalities = ['dense'] + ['random', 'magnitude', 'GraSP', 'SNIP'] + ['random_regrow_decay', 'magnitude_regrow_decay']
 discriminator_sparsities = [0]
 discriminator_modalities = ['dense']
 n_runs = 10

@@ -99,14 +99,14 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     H = tf.placeholder(tf.float32, shape=[None, dim])  # Hint vector
 
     # Generator variables: Data + Mask as inputs (Random noise is in missing components)
-    if generator_modality in ('dense', 'random', 'GraSP', 'SNIP', 'magnitude'):
+    if generator_modality in ('dense', 'random', 'GraSP', 'SNIP', 'magnitude', 'random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay'):
         G_W1 = normal_xavier_init([dim * 2, h_dim])
         G_W2 = normal_xavier_init([h_dim, h_dim])
         G_W3 = normal_xavier_init([h_dim, dim])
 
-        if generator_modality == 'random':
+        if generator_modality in ('random', 'random_regrow', 'random_regrow_decay'):
             G_W1, G_W2, G_W3 = random_init([G_W1, G_W2, G_W3], generator_sparsity)
-        elif generator_modality == "magnitude":
+        elif generator_modality in ('magnitude', 'magnitude_regrow', 'magnitude_regrow_decay'):
             G_W1, G_W2, G_W3 = magnitude_init([G_W1, G_W2, G_W3], generator_sparsity)
 
     elif generator_modality in ('ER', 'ERK', 'ERRW', 'ERKRW'):
@@ -289,7 +289,17 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     # "alpha" taken as a paremeter ("the hyperparameter") might be used for this
     # never prune
 
-    prune_period = 1000000
+    prune_period = 200 if 'regrow' in generator_modality else 1000000000
+
+    def get_regrow_fraction_func(fraction, modality, total_it):
+        if 'decay' not in modality:
+            return lambda _: fraction
+        else:
+            return lambda p: fraction * np.cos(np.pi / 2 * p / total_it)
+        
+    generator_regrow_fraction = 0.2
+
+    generator_regrow_fraction_func = get_regrow_fraction_func(generator_regrow_fraction, generator_modality, iterations)
 
 
     sess = tf.Session()
@@ -303,12 +313,11 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # strategy intentionally None if modality is dense or otherwise
 
-    if generator_modality == "random":
+    if generator_modality in ('random', 'random_regrow', 'random_regrow_decay'):
+        generator_strategy = RandomStrategy(generator_regrow_fraction_func, prune_period, generator_weights, sess)
+    elif generator_modality in ('magnitude', 'magnitude_regrow','magnitude_regrow_decay'):
 
-        generator_strategy = RandomStrategy(0.2, prune_period, generator_weights, sess)
-    elif generator_modality == "magnitude":
-
-        generator_strategy = MagnitudeStrategy(0.2, prune_period, generator_weights, sess)
+        generator_strategy = MagnitudeStrategy(generator_regrow_fraction_func, prune_period, generator_weights, sess)
         
     elif generator_modality in ("GraSP", "SNIP"):
 

@@ -56,7 +56,7 @@ class RandomStrategy(Strategy):
 
             # Number of weights to prune/regrow
             total_ones = np.sum(M)
-            k = int(self.fraction * total_ones)
+            k = int(self.fraction(self.i) * total_ones)
 
             # Prune k existing weights
             ones_idx = np.argwhere(M == 1)

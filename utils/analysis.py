@@ -265,8 +265,9 @@ def prepare_data_params(modality, x=None):
     - primary_color: the primary color
     - secondary_color: the secondary color
     """
-
+    
     # Todo expand for different settings (not only modality)
+    # NOTE change color for rmse graph here
     if modality == 'dense':
         primary_color = 'black'
         secondary_color = 'dimgray'
@@ -284,6 +285,26 @@ def prepare_data_params(modality, x=None):
         if x is not None: x = [f'   {x}   ' for x in x]
         primary_color = 'tab:purple'
         secondary_color = 'mediumorchid'
+    elif modality == 'magnitude':
+        if x is not None: x = [f'    {x}    ' for x in x]
+        primary_color = 'tab:blue'
+        secondary_color = 'lightblue'
+    elif modality == 'random_regrow':
+        if x is not None: x = [f'    {x}    ' for x in x]
+        primary_color = 'tab:cyan'
+        secondary_color = 'darkblue'
+    elif modality == 'magnitude_regrow':
+        if x is not None: x = [f'    {x}    ' for x in x]
+        primary_color = 'tab:purple'
+        secondary_color = 'violet'
+    elif modality.lower() == 'grasp': # HACK NOTE lowered modality case here for comparison graph color
+        if x is not None: x = [f'    {x}    ' for x in x]
+        primary_color = 'tab:red'
+        secondary_color = 'crimson'
+    elif modality.lower() == 'snip':
+        if x is not None: x = [f'    {x}    ' for x in x]
+        primary_color = 'tab:olive'
+        secondary_color = 'brown'
     else:
         if x is not None: x = [f'    {x}    ' for x in x]
         primary_color = 'tab:green'
