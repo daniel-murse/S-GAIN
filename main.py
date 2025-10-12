@@ -252,7 +252,11 @@ if __name__ == '__main__':
         help='the initialization and pruning and regrowth strategy of the generator',
         choices=['dense', 'random', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
                  'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
-                 'RSensitivity', 'magnitude'],
+                 'RSensitivity', 'magnitude', 
+                 'random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay',
+                 'grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
+                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay',
+                 ],
         default='dense',
         type=str)
     parser.add_argument(
