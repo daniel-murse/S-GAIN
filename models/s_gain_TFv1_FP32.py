@@ -297,7 +297,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         else:
             return lambda p: fraction * np.cos(np.pi / 2 * p / total_it)
         
-    generator_regrow_fraction = 0.2
+    generator_regrow_fraction = 0.3
 
     generator_regrow_fraction_func = get_regrow_fraction_func(generator_regrow_fraction, generator_modality, iterations)
 
