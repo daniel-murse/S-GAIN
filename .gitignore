@@ -3,6 +3,7 @@
 __pycache__/
 analysis/
 output/
-output_run_experiments/
+output_run_experiments*
+analysis*
 temp/
 temp2/
