@@ -79,7 +79,7 @@ def get_Gsm_Dsm(d_mr_mm_s_group):
     return Gsm, Dsm, nGsm, nDsm
 
 
-def prepare_plot(nGsm, nDsm, ax_width=6.4, ax_height=4.8, share_axis=False):
+def prepare_plot(nGsm, nDsm, ax_width=6.4, ax_height=4.8, share_axis=False, do_triple_axes = False):
     """Prepare a plot:
     (1) Set the correct number of rows and columns
     (2) Turn off the unused subplots
@@ -99,27 +99,34 @@ def prepare_plot(nGsm, nDsm, ax_width=6.4, ax_height=4.8, share_axis=False):
     - legend_loc: the location of the legend
     - y_title: the (relative) position of the title in the figure
     """
+    # NOTE tripling of the axes for analysis plot preparation is done to plot the mean and std separately
+    if (nDsm == 1 or nGsm == 1):
+        # base_rows = number of rows used for the plots themselves
+        base_rows = 3 if do_triple_axes else 1
 
-    if nDsm == 1 or nGsm == 1:
+        # if share_axis, we add one extra row and put both legend and info on it
+        # else share_axis, we also add one extra row, but use col 0 and col 1 separately
+        nrows = base_rows + 1
+
         # Plot parameters
-        nrows = 1 if share_axis else 2
         width, height, left, right, top, bottom, wspace, _, y_title = get_sizing(2, nrows, ax_width, ax_height)
         fig, axs = plt.subplots(nrows, 2, figsize=(width, height))
         plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace)
 
-        # Determine location of the experiment, system information and legend
-        info_ax = axs[1] if share_axis else axs[1, 0]
-        legend_ax = axs[1] if share_axis else axs[0, 1]
+        # This needs more work and fixing
+        info_ax = axs[base_rows, 0]
+        legend_ax = axs[base_rows, 1]
+
         legend_loc = 'upper left'
 
-        # Set extra axes off
+        # Turn off these axes so they don't show blank plot space
         info_ax.set_axis_off()
         legend_ax.set_axis_off()
-        if not share_axis: axs[1, 1].set_axis_off()
 
-    else:
+    else: # TODO this still needs work also the above only works for the RMSE
         # Plot parameters
         nrows = max(nGsm, nDsm) + 1
+        nrows = nrows * 3 if do_triple_axes else nrows
         width, height, left, right, top, bottom, wspace, hspace, y_title = get_sizing(2, nrows, ax_width, ax_height)
         fig, axs = plt.subplots(nrows, 2, figsize=(width, height))
         plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom, wspace=wspace, hspace=hspace)
@@ -129,7 +136,7 @@ def prepare_plot(nGsm, nDsm, ax_width=6.4, ax_height=4.8, share_axis=False):
         legend_loc = f'upper {"right" if share_axis else "left"}'
 
         for i in range(nGsm):
-            if i >= nDsm:
+            if i >= nDsm * (3 if do_triple_axes else 1):
                 axs_set_axis_off.append((i + 1, 0))
                 if not info_ax:
                     info_ax = (i + 1, 0)
@@ -138,7 +145,7 @@ def prepare_plot(nGsm, nDsm, ax_width=6.4, ax_height=4.8, share_axis=False):
                     legend_ax = (i + 1, 0)
 
         for i in range(nDsm):
-            if i >= nGsm:
+            if i >= nGsm * (3 if do_triple_axes else 1):
                 axs_set_axis_off.append((i + 1, 1))
                 if not info_ax:
                     info_ax = (i + 1, 1)
@@ -265,52 +272,46 @@ def prepare_data_params(modality, x=None):
     - primary_color: the primary color
     - secondary_color: the secondary color
     """
-    
-    # Todo expand for different settings (not only modality)
-    # NOTE change color for rmse graph here
-    if modality == 'dense':
-        primary_color = 'black'
-        secondary_color = 'dimgray'
-    elif modality == 'random':
-        if x is not None: x = [f' {x} ' for x in x]
-        primary_color = 'tab:orange'
-        secondary_color = 'orange'
-    elif modality == 'er':
-        modality = 'ER'
-        if x is not None: x = [f'  {x}  ' for x in x]
-        primary_color = 'tab:red'
-        secondary_color = 'pink'
-    elif modality == 'errw':
-        modality = 'ERRW'
-        if x is not None: x = [f'   {x}   ' for x in x]
-        primary_color = 'tab:purple'
-        secondary_color = 'mediumorchid'
-    elif modality == 'magnitude':
-        if x is not None: x = [f'    {x}    ' for x in x]
-        primary_color = 'tab:blue'
-        secondary_color = 'lightblue'
-    elif modality == 'random_regrow':
-        if x is not None: x = [f'    {x}    ' for x in x]
-        primary_color = 'tab:cyan'
-        secondary_color = 'darkblue'
-    elif modality == 'magnitude_regrow':
-        if x is not None: x = [f'    {x}    ' for x in x]
-        primary_color = 'tab:purple'
-        secondary_color = 'violet'
-    elif modality.lower() == 'grasp': # HACK NOTE lowered modality case here for comparison graph color
-        if x is not None: x = [f'    {x}    ' for x in x]
-        primary_color = 'tab:red'
-        secondary_color = 'crimson'
-    elif modality.lower() == 'snip':
-        if x is not None: x = [f'    {x}    ' for x in x]
-        primary_color = 'tab:olive'
-        secondary_color = 'brown'
-    else:
-        if x is not None: x = [f'    {x}    ' for x in x]
-        primary_color = 'tab:green'
-        secondary_color = 'limegreen'
+    # All settings were computed the same way, (some strings had various padding though; dense for example had 1, others had 4)
+    # Not too sure what the padding is for, probably not the RMSE
+    # Also the tab colours are intended to be a set of accessible, distinguishable visible colors
+    # But there are only 16 (afawk) so we changed them to hex colors, which we can also see in the IDE
+    modality_to_settings = {
+        'dense': { 'primary': '#000000', 'secondary': '#6c6c6c', 'pad': 0},
+        'random': { 'primary': '#ff7f0e', 'secondary': '#ffbb78', 'pad': 1},
+        'er': { 'primary': 'tab:red', 'secondary': 'pink', 'pad': 2},
+        'errw': { 'primary': 'tab:purple', 'secondary': 'mediumorchid', 'pad': 3},
+        'magnitude': { 'primary': '#1f77b4', 'secondary': '#aec7e8', 'pad': 4},
+        'grasp': { 'primary': '#d62728', 'secondary': '#ff9896', 'pad': 4},
+        'snip': { 'primary': '#2ca02c', 'secondary': '#98df8a', 'pad': 4},
+        'random_regrow': { 'primary': '#9467bd', 'secondary': '#c5b0d5', 'pad': 4},
+        'magnitude_regrow': { 'primary': '#8c564b', 'secondary': '#c49c94', 'pad': 4},
+        'random_regrow_decay': { 'primary': '#e377c2', 'secondary': '#f7b6d2', 'pad': 4},
+        'magnitude_regrow_decay': { 'primary': '#17becf', 'secondary': '#9edae5', 'pad': 4},
+        'grasp_random_regrow': { 'primary': '#bcbd22', 'secondary': '#dbdb8d', 'pad': 4},
+        'snip_random_regrow': { 'primary': '#393b79', 'secondary': '#6b6ecf', 'pad': 4},
+        'grasp_random_regrow_decay': { 'primary': '#637939', 'secondary': '#b5cf6b', 'pad': 4},
+        'snip_random_regrow_decay': { 'primary': '#8ca252', 'secondary': '#cedb9c', 'pad': 4},
+        'grasp_magnitude_regrow': { 'primary': '#bd9e39', 'secondary': '#e7ba52', 'pad': 4},
+        'snip_magnitude_regrow': { 'primary': '#ad494a', 'secondary': '#d6616b', 'pad': 4},
+        'grasp_magnitude_regrow_decay': { 'primary': '#843c39', 'secondary': '#d17c72', 'pad': 4},
+        'snip_magnitude_regrow_decay': { 'primary': '#7b4173', 'secondary': '#ce6dbd', 'pad': 4},
+    }
+    default_config = {'primary': 'tab:green', 'secondary': 'limegreen', 'pad': 4}
 
-    return modality, x, primary_color, secondary_color
+    # NOTE modality is lower cased for graph parameter comparison in analysis
+    settings = default_config if modality.lower() not in modality_to_settings else modality_to_settings[modality.lower()]
+    pad = settings.pop('pad', None)
+
+    if x is not None and pad:
+        space = ' ' * pad
+        x = [f'{space}{label}{space}' for label in x]
+
+    primary_color = settings['primary']
+    secondary_color = settings['secondary']
+
+    # Return lower for consistency and aid in case the lowercasing of the modality is forgotten and causes a bug
+    return modality.lower(), x, primary_color, secondary_color
 
 
 def plot_legend(ax, legend_ax, legend_loc, show_bs_hr_a_i, subtitle):
@@ -458,10 +459,17 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
     :param verbose: enable verbose output to console
     """
 
-    def subplot(ax, M_rmse_mean_std, M, legend_ax, sparsity='all', modality='settings'):
+    # Modified this to take 3 axes for the original error bar plot, and a mean and std plot too (each plot with their own separate axis)
+    def subplot(ax, ax_mean, ax_std, M_rmse_mean_std, M, legend_ax, sparsity='all', modality='settings'):
         """Create a subplot per model setting.
 
-        :param ax: the subplot to write to
+        The first axis shows the original plot (with error bars/shading).
+        The second axis shows only the mean (no error bars).
+        The third axis shows only the std (no error bars).
+
+        :param ax: the main subplot to write the original plot with error bars to
+        :param ax_mean: axis for plotting the mean only (no error bars)
+        :param ax_std: axis for plotting the std only (no error bars)
         :param M_rmse_mean_std: the rmse mean and std group
         :param M: the model this belongs to (Generator or Discriminator)
         :param legend_ax: the subplot to write the legend to
@@ -491,7 +499,7 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
             label = f'{batch_size}_{hint_rate}_{alpha}_{iterations}_{modality}' if show_bs_hr_a_i \
                 else f'{modality[0].upper()}{modality[1:]}'
 
-            # Add experiment to plot
+            # Define the original error bar plot data with its axis
             if modality == 'dense':
                 y_mu = y.iloc[0]
                 y_sigma = y_mu + e.iloc[0], y_mu - e.iloc[0]
@@ -506,16 +514,39 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
                             label=label)
                 ax.fill_between(x, y - e, y + e, color=primary_color, alpha=0.2)
 
-            # Subplot parameters
-            ax.title.set_size(16)
-            ax.grid(True)
-            ax.xaxis.set_major_formatter(ticker.PercentFormatter(xmax=1., decimals=0))  # Format sparsity as percentage
-            ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))  # Format RMSE to 4 decimals
-            ax.set_xlabel(f'{subtitle} sparsity', size=13)
-            ax.set_ylabel('RMSE ± 1 SD', size=13)  # Todo CI
-            ax.tick_params(labelsize=12)
+            # Define the mean plot data with its axis
+            if modality == 'dense':
+                # For dense modality, plot a single horizontal line at the mean RMSE (does not vary with sparsity)
+                y_mu = y.iloc[0]
+                ax_mean.axhline(y=y_mu, color=primary_color, linewidth=1, label=label)
+            else:
+                # For sparse modality, plot mean vs sparsity without error bars
+                ax_mean.plot(x, y, color=primary_color, marker='o', markersize=3, linewidth=1, label=label)
 
-        # Update the legend only on the first plot
+            # Define the std data plot with its axis
+            if modality == 'dense':
+                # For dense modality, plot a single horizontal line at the std (does not vary with sparsity)
+                y_std = e.iloc[0]
+                ax_std.axhline(y=y_std, color=primary_color, linewidth=1, label=label)
+            else:
+                # For sparse modality, plot std vs sparsity without error bars
+                ax_std.plot(x, e, color=primary_color, marker='o', markersize=3, linewidth=1, label=label)
+
+        # Set the common parameters for the 3 axes
+        for ax_tmp, y_label in (
+            (ax, 'RMSE ± 1 SD'),   # original label
+            (ax_mean, 'RMSE (mean)'),
+            (ax_std, 'RMSE (std)'),
+        ):
+            ax_tmp.title.set_size(16)
+            ax_tmp.grid(True)
+            ax_tmp.xaxis.set_major_formatter(ticker.PercentFormatter(xmax=1., decimals=0))  # Format sparsity as percentage
+            ax_tmp.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.4f'))  # Format RMSE/std to 4 decimals
+            ax_tmp.set_xlabel(f'{subtitle} sparsity', size=13)
+            ax_tmp.set_ylabel(y_label, size=13)
+            ax_tmp.tick_params(labelsize=12)
+
+        # Update the legend only on the first plot (use main axis for consistency)
         plot_legend(ax, legend_ax, 'upper left', show_bs_hr_a_i, subtitle)
 
     #  -- Plot RMSE ---------------------------------------------------------------------------------------------------
@@ -529,7 +560,10 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
         # Prepare plot
         d_mr_mm_s_group.drop(d_mr_mm_s, axis='columns', inplace=True)
         Gsm, Dsm, nGsm, nDsm = get_Gsm_Dsm(d_mr_mm_s_group)
-        fig, axs, info_ax, legend_ax, legend_loc, y_title = prepare_plot(nGsm, nDsm, 6.4, 4.8)
+
+        # NOTE: request triple axes from prepare_plot
+        fig, axs, info_ax, legend_ax, legend_loc, y_title = prepare_plot(nGsm, nDsm, 6.4, 4.8, do_triple_axes=True)
+
         title, text = prepare_text(dataset, miss_rate, miss_modality, seed, sys_info)
         if verbose: print(title)
 
@@ -543,20 +577,26 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
 
         # Plot subplots
         if nDsm == 1 or nGsm == 1:
+            print("Doing the one thing")
             # Show the influence of different settings for the Generator
             if nDsm == 1:
-                subplot(axs[0, 0], G_rmse_mean_std, 'G', legend_ax, Dsm[0][0], Dsm[0][1])
+                ax_main, ax_mean, ax_std = axs[0, 0], axs[1, 0], axs[2, 0]
+                subplot(ax_main, ax_mean, ax_std, G_rmse_mean_std, 'G', legend_ax, Dsm[0][0], Dsm[0][1])
 
             # Show the influence of different settings for the Discriminator
             else:  # nGsm == 1
-                subplot(axs[0, 0], D_rmse_mean_std, 'D', legend_ax, Gsm[0][0], Gsm[0][1])
+                ax_main, ax_mean, ax_std = axs[0, 0], axs[1, 0], axs[2, 0]
+                subplot(ax_main, ax_mean, ax_std, D_rmse_mean_std, 'D', legend_ax, Gsm[0][0], Gsm[0][1])
 
         else:  # Multiple settings used for both the Generator and Discriminator
+            print("Doing the many thing")
             # Show the influence of different settings for the Generator (ignore Discriminator settings)
-            subplot(axs[0, 0], G_rmse_mean_std, 'G', legend_ax)
+            ax_main, ax_mean, ax_std = axs[0, 0], axs[1, 0], axs[2, 0]
+            subplot(ax_main, ax_mean, ax_std, G_rmse_mean_std, 'G', legend_ax)
 
             # Show the influence of different settings for the Discriminator (ignore Generator settings)
-            subplot(axs[0, 1], D_rmse_mean_std, 'D', legend_ax)
+            ax_main, ax_mean, ax_std = axs[0, 1], axs[1, 1], axs[2, 1]
+            subplot(ax_main, ax_mean, ax_std, D_rmse_mean_std, 'D', legend_ax)
 
             # Show the influence of different settings for the Generator for different Discriminator settings
             for i in range(nDsm):
@@ -566,7 +606,8 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
                 )
                 G_group.drop(ds + dm, axis='columns', inplace=True)
                 G_rmse_mean_std = G_group.groupby(bs_hr_a_i + gs + gm, as_index=False).agg(['mean', 'std'])
-                subplot(axs[i + 1, 0], G_rmse_mean_std, 'G', legend_ax, Dsm[i][0], Dsm[i][1])
+                ax_main, ax_mean, ax_std = axs[((i + 1) * 3) + 0, 0], axs[((i + 1) * 3) + 1, 0], axs[((i + 1) * 3) + 2, 0]
+                subplot(ax_main, ax_mean, ax_std, G_rmse_mean_std, 'G', legend_ax, Dsm[i][0], Dsm[i][1])
 
             # Show the influence of different settings for the Discriminator for different Generator settings
             for i in range(nGsm):
@@ -576,7 +617,8 @@ def plot_rmse(experiments, sys_info=None, save=False, folder='analysis', verbose
                 )
                 D_group.drop(gs + gm, axis='columns', inplace=True)
                 D_rmse_mean_std = D_group.groupby(bs_hr_a_i + ds + dm, as_index=False).agg(['mean', 'std'])
-                subplot(axs[i + 1, 1], D_rmse_mean_std, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
+                ax_main, ax_mean, ax_std = axs[((i + 1) * 3) + 0, 1], axs[((i + 1) * 3) + 1, 1], axs[((i + 1) * 3) + 2, 1]
+                subplot(ax_main, ax_mean, ax_std, D_rmse_mean_std, 'D', legend_ax, Gsm[i][0], Gsm[i][1])
 
         # Plot system information
         plot_info(info_ax, text)
