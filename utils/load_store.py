@@ -351,6 +351,11 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
             # TODO NOTE can have a prefix check for modality here instead of an equality check to allow carrying over information to the s-gain function
         ]
         sparsity_modality += [
+            (sparsity, modality) for sparsity in sparsities if sparsity > 0
+            for modality in modalities if modality in ('grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
+                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay')
+        ]
+        sparsity_modality += [
             (sparsity, 'ER')
             for sparsity in sparsities if sparsity > 0
             for modality in modalities if modality in ('ER', 'erdos_renyi')

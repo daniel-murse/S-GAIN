@@ -100,7 +100,10 @@ def main(args):
             return sparsity, 'GraSP'
         elif modality in ('snip'):
             return sparsity, 'SNIP'
-        elif modality in ('random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay'):
+        elif modality in ('random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay',):
+            return sparsity, modality
+        elif modality in ('grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
+                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay'):
             return sparsity, modality
         return None
 

@@ -24,6 +24,8 @@ Paper Link: https://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 """
 
 import numpy as np
+from strategies.grasp_regrow_strategy import GraspRegrowStrategy
+from strategies.snip_regrow_strategy import SnipRegrowStrategy
 from strategies.snip_strategy import SnipStrategy
 import tensorflow.compat.v1 as tf
 
@@ -99,7 +101,9 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     H = tf.placeholder(tf.float32, shape=[None, dim])  # Hint vector
 
     # Generator variables: Data + Mask as inputs (Random noise is in missing components)
-    if generator_modality in ('dense', 'random', 'GraSP', 'SNIP', 'magnitude', 'random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay'):
+    if generator_modality in ('dense', 'random', 'GraSP', 'SNIP', 'magnitude', 'random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay',
+                              'grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
+                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay'):
         G_W1 = normal_xavier_init([dim * 2, h_dim])
         G_W2 = normal_xavier_init([h_dim, h_dim])
         G_W3 = normal_xavier_init([h_dim, dim])
@@ -319,7 +323,10 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
         generator_strategy = MagnitudeStrategy(generator_regrow_fraction_func, prune_period, generator_weights, sess)
         
-    elif generator_modality in ("GraSP", "SNIP"):
+    elif generator_modality in ("GraSP", "SNIP", 'grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
+                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay'):
+        
+        generator_regrow_modality = "random" if "random" in generator_modality else ("magnitude" if "magnitude" in generator_modality else None)
 
         # Map G weights to G weight gradients. Remember they are symbolic tensors
         G_W_vars_and_grads = { v : g for g, v in G_grads_and_vars if v in generator_weights }
@@ -347,9 +354,15 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         # and if so, whether to use a differend feed_dict (batch) for grasp scores or the same one
         if generator_modality == "GraSP":
             generator_strategy = GraspStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
-        else:
+        elif generator_modality == "SNIP":
             generator_strategy = SnipStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
-
+        else:
+            if "grasp" in generator_modality:
+                generator_strategy = GraspRegrowStrategy(generator_sparsity, generator_regrow_fraction_func, prune_period, G_W_vars_and_grads, sess, feed_dict, generator_regrow_modality)
+            elif "snip" in generator_modality:
+                generator_strategy = SnipRegrowStrategy(generator_sparsity, generator_regrow_fraction_func, prune_period, G_W_vars_and_grads, sess, feed_dict, generator_regrow_modality)
+            else:
+                raise Exception()
 
     for it in tqdm(range(iterations)):
 
