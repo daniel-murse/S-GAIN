@@ -4,11 +4,6 @@ from strategies.pruning.prune_strategy import PruneStrategy
 # Tthe tf_mask_prune_random_[count, fraction] are 2 different functions because although they are similar, reusing the count one for the fraction can hurt performance (even though tf may optimise identical trees in nodes)
 
 def tf_mask_prune_random_count(mask_tensor, prune_count, seed=None):
-    # To approach this in tf, we need to flatten the mask, update it with scattered updates (update a flat list in multiple indices)
-    # Then we will reshape the flat list to the original mask shape and we have the updated mask
-
-    # Flatten the mask
-    flat = tf.reshape(mask_tensor, [-1])
     # List of the indices of non zero mask entries (active weights)
     active_indices = tf.where(tf.equal(mask_tensor, 1))
     # Count the number of active weights to clip the prune count safely (this is the dimension of the list of ones indices)
@@ -26,19 +21,14 @@ def tf_mask_prune_random_count(mask_tensor, prune_count, seed=None):
     prune_indices = shuffled_ones_indices[:prune_count]
 
     # This is the updated flat list with zeros in the prune indices
-    mask_updates = tf.tensor_scatter_nd_update(flat,
+    mask_updates = tf.tensor_scatter_nd_update(mask_tensor,
                                                prune_indices,
                                                tf.zeros([prune_count], dtype=mask_tensor.dtype))
     
     # Reshape the flat list to the original mask shap
-    return tf.reshape(mask_updates, tf.shape(mask_tensor))
+    return mask_updates
 
 def tf_mask_prune_random_fraction(mask_tensor, fraction, seed=None):
-    # To approach this in tf, we need to flatten the mask, update it with scattered updates (update a flat list in multiple indices)
-    # Then we will reshape the flat list to the original mask shape and we have the updated mask
-
-    # Flatten the mask
-    flat = tf.reshape(mask_tensor, [-1])
     # Indices of non zero mask entries (active weights)
     active_indices = tf.where(tf.equal(mask_tensor, 1))
     # Count the number of active weights to clip the prune count safely (this is the dimension of the list of ones indices)
@@ -57,22 +47,22 @@ def tf_mask_prune_random_fraction(mask_tensor, fraction, seed=None):
     prune_indices = shuffled_ones_indices[:prune_count]
 
     # This is the updated flat list with zeros in the prune indices
-    mask_updates = tf.tensor_scatter_nd_update(flat,
+    mask_updates = tf.tensor_scatter_nd_update(mask_tensor,
                                                prune_indices,
                                                tf.zeros([prune_count], dtype=mask_tensor.dtype))
     
     # Reshape the flat list to the original mask shap
-    return tf.reshape(mask_updates, tf.shape(mask_tensor))
+    return mask_updates
 
 
 class RandomPruneStrategy(PruneStrategy):
-    def __init__(self, sparsity, prune_count_func):
+    def __init__(self, prune_count_func):
         super().__init__()
-        self.sparsity = sparsity
         self.prune_count_func = prune_count_func
 
     def get_tf_pruned_mask_tensors(self, training_loop_iteration, weight_tensors, mask_tensors):
         prune_counts = self.prune_count_func(training_loop_iteration)
         if prune_counts is not None:
+            print("rpune", prune_counts)
             return [tf_mask_prune_random_count(m, pc) for m, pc in zip(mask_tensors, prune_counts) if pc is not None]
         return None

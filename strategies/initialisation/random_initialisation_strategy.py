@@ -16,5 +16,6 @@ class RandomInitialisationStrategy(InitialisationStrategy):
     
 def tf_mask_init_random(sparsity, weight_tensor):
     # NOTE HACK tf_random_mask_init its ok to return a numpy object because tf will cast numpy to a tensor when used in operations
+    # NOTE is random, so it may not keep the exact sparsity (+- a few percent)
     mask_tensor = np.random.choice([0, 1], size=weight_tensor.shape, p=[sparsity, 1 - sparsity])
     return mask_tensor

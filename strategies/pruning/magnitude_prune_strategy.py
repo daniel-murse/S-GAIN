@@ -70,7 +70,7 @@ def tf_mask_prune_magnitude_fraction(mask_tensor, weight_tensor, fraction, seed=
     return tf.reshape(new_mask_flat, tf.shape(mask_tensor))
 
 
-class MagnitdePruneStrategy(PruneStrategy):
+class MagnitudePruneStrategy(PruneStrategy):
     def __init__(self, prune_count_func):
         super().__init__()
         self.prune_count_func = prune_count_func

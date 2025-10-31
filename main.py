@@ -105,7 +105,7 @@ def main(args):
         elif modality in ('grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
                  'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay'):
             return sparsity, modality
-        return None
+        return sparsity, modality
 
     generator_sparsity, generator_modality = sparsity_modality(generator_sparsity, generator_modality)
     discriminator_sparsity, discriminator_modality = sparsity_modality(discriminator_sparsity, discriminator_modality)
@@ -155,6 +155,7 @@ def main(args):
 
     if not no_save:
         if verbose: print('Saving imputation...')
+        print(filepath_imputed_data)
         save_imputation(filepath_imputed_data, imputed_data_x)
 
     # We need to save stuff with the monitor so flush the logs. We need to do this before running logs_and_graphs, so we need an explicit flush
@@ -255,13 +256,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '-gm', '--generator_modality',
         help='the initialization and pruning and regrowth strategy of the generator',
-        choices=['dense', 'random', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
-                 'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
-                 'RSensitivity', 'magnitude', 
-                 'random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay',
-                 'grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
-                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay',
-                 ],
+        # No choices as we parse params from the args now
+        # choices=['dense', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
+        #          'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
+        #          'RSensitivity',
+        #          # NOTE HACK choice combinations need to be added here
+        #          ],
         default='dense',
         type=str)
     parser.add_argument(

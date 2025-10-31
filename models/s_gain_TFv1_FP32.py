@@ -25,6 +25,13 @@ Paper Link: https://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 
 import numpy as np
 from strategies.grasp_regrow_strategy import GraspRegrowStrategy
+from strategies.initialisation.initialisation_strategy import InitialisationStrategy
+from strategies.initialisation.magnitude_initialisation_strategy import MagnitudeInitialisationStrategy
+from strategies.initialisation.random_initialisation_strategy import RandomInitialisationStrategy
+from strategies.parsing.create_count_func import create_count_func
+from strategies.pruning.magnitude_prune_strategy import MagnitudePruneStrategy
+from strategies.pruning.random_prune_strategy import RandomPruneStrategy
+from strategies.regrowing.random_normal_xavier_regrow_strategy import RandomNormalXavierRegrowStrategy
 from strategies.snip_regrow_strategy import SnipRegrowStrategy
 from strategies.snip_strategy import SnipStrategy
 import tensorflow.compat.v1 as tf
@@ -38,6 +45,7 @@ from strategies.random_strategy import RandomStrategy
 from strategies.strategy import Strategy
 from utils.inits_TFv1_FP32 import magnitude_init, normal_xavier_init, random_init, erdos_renyi_init, erdos_renyi_random_weights_init
 from utils.metrics import get_sparsity
+from strategies.parsing.tokenise_modality import tokenise_modality
 from utils.utils import binary_sampler, uniform_sampler, sample_batch_index, normalization, renormalization, rounding
 
 tf.disable_v2_behavior()
@@ -100,20 +108,11 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     M = tf.placeholder(tf.float32, shape=[None, dim])  # Mask vector
     H = tf.placeholder(tf.float32, shape=[None, dim])  # Hint vector
 
+    # By default the generator modality should not be parsed
+    parse_gm = False
+
     # Generator variables: Data + Mask as inputs (Random noise is in missing components)
-    if generator_modality in ('dense', 'random', 'GraSP', 'SNIP', 'magnitude', 'random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay',
-                              'grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
-                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay'):
-        G_W1 = normal_xavier_init([dim * 2, h_dim])
-        G_W2 = normal_xavier_init([h_dim, h_dim])
-        G_W3 = normal_xavier_init([h_dim, dim])
-
-        if generator_modality in ('random', 'random_regrow', 'random_regrow_decay'):
-            G_W1, G_W2, G_W3 = random_init([G_W1, G_W2, G_W3], generator_sparsity)
-        elif generator_modality in ('magnitude', 'magnitude_regrow', 'magnitude_regrow_decay'):
-            G_W1, G_W2, G_W3 = magnitude_init([G_W1, G_W2, G_W3], generator_sparsity)
-
-    elif generator_modality in ('ER', 'ERK', 'ERRW', 'ERKRW'):
+    if generator_modality in ('ER', 'ERK', 'ERRW', 'ERKRW'):
         G_Ws = {
             'G_W1': np.zeros([dim * 2, h_dim]),
             'G_W2': np.zeros([h_dim, h_dim]),
@@ -131,10 +130,20 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     elif generator_modality == 'RSensitivity':
         return None
+    else: # NOTE HACK we use allow any modality here for simpicity in manual parsing of the name for parameters
 
-    else:  # This should not happen.
-        print(f'Invalid generator modality "{generator_modality}". Exiting the program.')
-        return None
+        # Normal xavier init for the weights for all strategies; no strategy discriminates this except maybe ER but that is handled above
+        G_W1 = normal_xavier_init([dim * 2, h_dim])
+        G_W2 = normal_xavier_init([h_dim, h_dim])
+        G_W3 = normal_xavier_init([h_dim, dim])
+
+        # Parse the generator modality if its not er or dense
+        if generator_modality not in ("dense"):
+            parse_gm = True
+
+    # else:  # This should not happen.
+    #     print(f'Invalid generator modality "{generator_modality}". Exiting the program.')
+    #     return None
 
     G_W1 = tf.Variable(G_W1)
     G_b1 = tf.Variable(tf.zeros(shape=[h_dim]))
@@ -279,96 +288,151 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     D_grads_and_vars = D_optimizer.compute_gradients(D_loss, var_list=theta_D)
     G_grads_and_vars = G_optimizer.compute_gradients(G_loss, var_list=theta_G)
-
-    # No longer clip gradients
         
     D_solver = D_optimizer.apply_gradients(D_grads_and_vars)
     G_solver = G_optimizer.apply_gradients(G_grads_and_vars)
 
+    # Mask variables
+    
+    generator_weights = [G_W1, G_W2, G_W3]
+    generator_weight_counts = [w.shape.num_elements() for w in generator_weights]
+    generator_masks = [tf.Variable(tf.ones_like(w), trainable=False) for w in generator_weights]
+
     # -- S-GAIN training ----------------------------------------------------------------------------------------------
 
     if verbose: print('Training S-GAIN...')
-
-    # Grafted random pruning, no regrow
-    # "alpha" taken as a paremeter ("the hyperparameter") might be used for this
-    # never prune
-
-    prune_period = 200 if 'regrow' in generator_modality else 1000000000
-
-    def get_regrow_fraction_func(fraction, modality, total_it):
-        if 'decay' not in modality:
-            return lambda _: fraction
-        else:
-            return lambda p: fraction * np.cos(np.pi / 2 * p / total_it)
-        
-    generator_regrow_fraction = 0.3
-
-    generator_regrow_fraction_func = get_regrow_fraction_func(generator_regrow_fraction, generator_modality, iterations)
-
 
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     
     # Initialise the DST strategy
 
-    generator_strategy : Strategy | None = None
+    # Parse the modality
+    if parse_gm:
+        generator_strategy_sections_params = tokenise_modality(generator_modality)
+    
+        # We prefix the modality params with a version prefix for how the lexemes are to be parsed
+        # With this prefix we can change how many sections are expected and what they represent, etc. 
+        if generator_strategy_sections_params[0][0] == "constant_sparsity" and len(generator_strategy_sections_params[0][1]) == 0 and len(generator_strategy_sections_params) == 3:
 
-    generator_weights = [G_W1, G_W2, G_W3]
+            # So far we expect "v1[]" + ("none" or "mask_init_prune_randomly" or mask_init_prune_magnitude) + "[]"
+            generator_init_mode, generator_init_params = generator_strategy_sections_params[1]
+            if(len(generator_init_params) != 0):
+                print("Invalid init strategy", generator_strategy_sections_params[1])
+                return None
+            if generator_init_mode in ("dense"):
+                generator_init_strategy = None
+            elif generator_init_mode in ("random"):
+                generator_init_strategy = RandomInitialisationStrategy(generator_sparsity)
+            elif generator_init_mode in ("magnitude"):
+                generator_init_strategy = MagnitudeInitialisationStrategy(generator_sparsity)
 
-    # strategy intentionally None if modality is dense or otherwise
+            # So far we expect "v1[]" + ("none" or "mask_init_prune_randomly" or mask_init_prune_magnitude) + "[]"
+            generator_prune_mode, generator_prune_params = generator_strategy_sections_params[2]
+            if (generator_prune_mode != "static" or len(generator_prune_params) != 0) and (len(generator_prune_params) != 6 or generator_prune_params[0] != "period" or generator_prune_params[2] != "fraction" or generator_prune_params[4] != "decay"):
+                print("Invalid prune strategy", generator_strategy_sections_params[2])
+                return None
+            
+            if generator_prune_mode == "static":
+                generator_prune_strategy = None
+            else: 
+                generator_prune_period = int(generator_prune_params[1])
+                generator_prune_fraction = (float(generator_prune_params[3]) / 100) * generator_sparsity
+                generator_prune_decay = generator_prune_params[5]
 
-    if generator_modality in ('random', 'random_regrow', 'random_regrow_decay'):
-        generator_strategy = RandomStrategy(generator_regrow_fraction_func, prune_period, generator_weights, sess)
-    elif generator_modality in ('magnitude', 'magnitude_regrow','magnitude_regrow_decay'):
+                decay_funcs = {
+                    "constant": lambda p: generator_prune_fraction if p != 0 and p % generator_prune_period == 0 else None,
+                    "cosine":   lambda p: generator_prune_fraction * np.cos((np.pi * p) / (iterations * 2)) if p  != 0 and p % generator_prune_period == 0 else None,
+                }
 
-        generator_strategy = MagnitudeStrategy(generator_regrow_fraction_func, prune_period, generator_weights, sess)
-        
-    elif generator_modality in ("GraSP", "SNIP", 'grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
-                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay'):
-        
-        generator_regrow_modality = "random" if "random" in generator_modality else ("magnitude" if "magnitude" in generator_modality else None)
+                if generator_prune_decay not in decay_funcs:
+                    print("Invalid prune strategy decay", generator_strategy_sections_params[2])
+                    return None
 
-        # Map G weights to G weight gradients. Remember they are symbolic tensors
-        G_W_vars_and_grads = { v : g for g, v in G_grads_and_vars if v in generator_weights }
+                generator_fraction_func = decay_funcs.get(generator_prune_decay)
 
-        # Sample batch
-        # NOTE This seems to sample batches randomly instead of sequentially using shuffled data
-        batch_idx = sample_batch_index(no, batch_size)
-        X_mb = norm_data_x[batch_idx, :]
-        M_mb = data_mask[batch_idx, :]
+                # This determines how many to prune and regrow, as we prune n regrow n
+                generator_count_func = create_count_func(generator_fraction_func, generator_prune_period, generator_weight_counts)
 
-        # Sample random vectors
-        Z_mb = uniform_sampler(0, 0.01, batch_size, dim)
-
-        # Sample hint vectors
-        H_mb_temp = binary_sampler(hint_rate, batch_size, dim)
-        H_mb = M_mb * H_mb_temp
-
-        # Combine random vectors with observed vectors
-        X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb
-
-        # This is the batch used for GraSP or SNIP
-        feed_dict = {M: M_mb, X: X_mb, H: H_mb}
-
-        # Create the grasp strategy. Note: whether to periodically recompute the grasp mask,
-        # and if so, whether to use a differend feed_dict (batch) for grasp scores or the same one
-        if generator_modality == "GraSP":
-            generator_strategy = GraspStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
-        elif generator_modality == "SNIP":
-            generator_strategy = SnipStrategy(generator_sparsity, prune_period, G_W_vars_and_grads, sess, feed_dict)
-        else:
-            if "grasp" in generator_modality:
-                generator_strategy = GraspRegrowStrategy(generator_sparsity, generator_regrow_fraction_func, prune_period, G_W_vars_and_grads, sess, feed_dict, generator_regrow_modality)
-            elif "snip" in generator_modality:
-                generator_strategy = SnipRegrowStrategy(generator_sparsity, generator_regrow_fraction_func, prune_period, G_W_vars_and_grads, sess, feed_dict, generator_regrow_modality)
+                if generator_prune_mode == "random":
+                    generator_prune_strategy = RandomPruneStrategy(generator_count_func)
+                elif generator_prune_mode == "magnitude":
+                    generator_prune_strategy = MagnitudePruneStrategy(generator_count_func)
+                else:
+                    print("Invalid prune strategy mode", generator_strategy_sections_params[2])
+                    return None
+            
+            if generator_prune_strategy is not None:
+                generator_regrow_strategy = RandomNormalXavierRegrowStrategy(generator_count_func)
             else:
-                raise Exception()
+                generator_regrow_strategy = None
+            
+        else:
+            print("Invalid generator modality", generator_modality, "parsed as", generator_strategy_sections_params)
+            return None
+        
+    else:
+        generator_init_strategy = None
+        generator_prune_strategy = None
+        generator_regrow_strategy = None
+
+    generator_apply_masks_op = tf.group(*[
+        tf.assign(w, w * m)
+        for w, m in zip(generator_weights, generator_masks)
+    ])
+    
+    if generator_init_strategy is not None:
+        print("initing")
+        mask_updates = generator_init_strategy.get_tf_mask_initialisation_tensors(generator_weights)
+        assign_ops = [tf.assign(mask_var, new_mask) for mask_var, new_mask in zip(generator_masks, mask_updates)]
+        sess.run(assign_ops)
+
+    # Training loop
+
+    # Apply the mask to start
+    sess.run(generator_apply_masks_op)
 
     for it in tqdm(range(iterations)):
 
-        if generator_strategy is not None:
-            generator_strategy.iteration()
-                    
+        if generator_prune_strategy is not None:
+            pruned_masks = generator_prune_strategy.get_tf_pruned_mask_tensors(it, generator_weights, generator_masks)
+            if pruned_masks is not None:
+                print("pruning")
+                generator_prune_ops = []
+                generator_prune_ops += [
+                    tf.assign(mask_var, new_mask)
+                    for mask_var, new_mask in zip(generator_masks, pruned_masks)
+                ]
+                sess.run(tf.group(*generator_prune_ops))
+
+        if generator_regrow_strategy is not None:
+            regrow_result = generator_regrow_strategy.get_tf_regrowed_mask_and_weight_tensors(
+                it, generator_weights, generator_masks
+            )
+            if regrow_result is not None:
+                print("regrowing")
+                new_weights, new_masks = zip(*regrow_result) if regrow_result else ([], [])
+
+                generator_regrow_ops = []
+
+                if new_masks is not None:
+                    generator_regrow_ops += [
+                        tf.assign(mask_var, new_mask)
+                        for mask_var, new_mask in zip(generator_masks, new_masks)
+                    ]
+
+                if new_weights is not None:
+                    generator_regrow_ops += [
+                        tf.assign(weight_var, new_weight)
+                        for weight_var, new_weight in zip(generator_weights, new_weights)
+                    ]
+
+                sess.run(generator_regrow_ops)
+
+        # Enforce the mask before calculating sparsity and the forward and backward pass
+        sess.run(generator_apply_masks_op)
+        
+        # Log sparsity
         if monitor:
             monitor.log_imputation_time()
 
@@ -425,8 +489,8 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
         if monitor: monitor.log_loss(G_loss_curr, D_loss_curr, MSE_loss_curr)
 
-    if(generator_strategy is not None):  
-        generator_strategy.end_train()
+    # Reinforce the mask for the last sparsity calculation after the last training forward and backward pass
+    sess.run(generator_apply_masks_op)
 
     if monitor:
         monitor.log_imputation_time()
