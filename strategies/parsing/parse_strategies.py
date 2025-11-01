@@ -17,8 +17,10 @@ def create_dst_strategies(
     iterations,
 ):
     """
-    Parse the DST modality string and construct the corresponding
-    initialization, pruning, and regrowth strategies.
+    Parse a DST modality string and construct the corresponding initialization, pruning, and regrowth strategies.
+
+    modality must have the shape:
+    "constant_sparsity@@" + ("dense" or "random" or "magnitude" or "snip" or "grasp") + "@@" + ( ("static@@") or ( ("random" or "magnitude") + "@period+<int>+fraction<int_percentage>+decay<constant or cosine>@" ) )
 
     Returns:
         (init_strategy, prune_strategy, regrow_strategy)
@@ -27,12 +29,13 @@ def create_dst_strategies(
         ValueError: if any modality or parameter is invalid.
     """
 
+    # Parse the string into named sections and arguments: a list of (section_name, section_args) strings
     strategy_sections = tokenise_modality(modality)
 
     # Expect constant_sparsity v1 format with exactly 3 parts 
     # (the format name, the init part, and the prune part (regrow is implicit from the constant sparsity with normal xavier initialisation))
     if (
-        strategy_sections[0][0] != "constant_sparsity"
+        strategy_sections[0][0] != "v0"
         or len(strategy_sections[0][1]) != 0
         or len(strategy_sections) != 3
     ):
@@ -69,10 +72,7 @@ def create_dst_strategies(
     # Expect either "static[]" (no dynamic training) or 6 params ["period", int, "fraction", int percentage, "decay", constant or cosine] + a mode
     valid_static = prune_mode == "static" and len(prune_params) == 0
     valid_dynamic = (
-        len(prune_params) == 6
-        and prune_params[0] == "period"
-        and prune_params[2] == "fraction"
-        and prune_params[4] == "decay"
+        len(prune_params) == 3
     )
 
     if not (valid_static or valid_dynamic):
@@ -85,9 +85,9 @@ def create_dst_strategies(
     # Else create the prune strategy, and a regrow strategy to grow back the same amount (constant sparsity) with normal xavier init
     else:
         # Parse parameters
-        generator_prune_period = int(prune_params[1])
-        generator_prune_fraction = (float(prune_params[3]) / 100) * sparsity
-        generator_prune_decay = prune_params[5]
+        generator_prune_period = int(prune_params[0])
+        generator_prune_fraction = float(prune_params[1]) * sparsity
+        generator_prune_decay = prune_params[2]
 
         decay_funcs = {
             "constant": lambda p: generator_prune_fraction if p != 0 and p % generator_prune_period == 0 else None,

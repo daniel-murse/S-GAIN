@@ -24,7 +24,6 @@ Paper Link: https://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 """
 
 import numpy as np
-from strategies.grasp_regrow_strategy import GraspRegrowStrategy
 from strategies.initialisation.grasp_initialisation_strategy import GraSPInitialisationStrategy
 from strategies.initialisation.initialisation_strategy import InitialisationStrategy
 from strategies.initialisation.magnitude_initialisation_strategy import MagnitudeInitialisationStrategy
@@ -35,16 +34,11 @@ from strategies.parsing.parse_strategies import create_dst_strategies
 from strategies.pruning.magnitude_prune_strategy import MagnitudePruneStrategy
 from strategies.pruning.random_prune_strategy import RandomPruneStrategy
 from strategies.regrowing.random_normal_xavier_regrow_strategy import RandomNormalXavierRegrowStrategy
-from strategies.snip_regrow_strategy import SnipRegrowStrategy
-from strategies.snip_strategy import SnipStrategy
 import tensorflow.compat.v1 as tf
 
 from tqdm import tqdm
 
 from monitors.monitor import Monitor
-from strategies.grasp_strategy import GraspStrategy
-from strategies.magnitude_strategy import MagnitudeStrategy
-from strategies.random_strategy import RandomStrategy
 from strategies.strategy import Strategy
 from utils.inits_TFv1_FP32 import magnitude_init, normal_xavier_init, random_init, erdos_renyi_init, erdos_renyi_random_weights_init
 from utils.metrics import get_sparsity
@@ -111,7 +105,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     M = tf.placeholder(tf.float32, shape=[None, dim])  # Mask vector
     H = tf.placeholder(tf.float32, shape=[None, dim])  # Hint vector
 
-    # By default the generator modality should not be parsed
+    # By default the generator modality should not be parsed and no strategy is created
     parse_gm = False
 
     # Generator variables: Data + Mask as inputs (Random noise is in missing components)
@@ -140,7 +134,9 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         G_W2 = normal_xavier_init([h_dim, h_dim])
         G_W3 = normal_xavier_init([h_dim, dim])
 
-        # Parse the generator modality if its not er or dense
+        # If the modality is not dense or er, it is a custom modality carrying information
+        # Parse the generator modality if its not er or dense. The flag will be checked later for parsing
+        # As tf variables need to be created when the strategy is parsed to count their shape
         if generator_modality not in ("dense"):
             parse_gm = True
 
@@ -159,7 +155,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     theta_G = [G_W1, G_W2, G_W3, G_b1, G_b2, G_b3]
 
-    # By default the discriminator modality should not be parsed
+    # By default the discriminator modality should not be parsed and no strategy is created
     parse_dm = False
 
     # Discriminator variables: Data + Hint as inputs
@@ -187,6 +183,9 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         D_W2 = normal_xavier_init([h_dim, h_dim])
         D_W3 = normal_xavier_init([h_dim, dim])
 
+        # If the modality is not dense or er, it is a custom modality carrying information
+        # The flag will be checked later for parsing
+        # As tf variables need to be created when the strategy is parsed to count their shape
         if(discriminator_modality not in ("dense")):
             parse_dm = True
     # else:  # This should not happen.
@@ -234,6 +233,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     use_clipping = True
     # If we should check for clipping
     log_clipping = True and use_clipping
+    # Clip epsilon, keep it small
     D_prob_clip_epsilon = 1e-8
 
     # Generator
@@ -247,7 +247,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     ## GAIN loss
 
-    # Set TF nodes for clipping
+    # Set TF nodes for clipping if using clipping
     if use_clipping:
         # Clip discriminator probabilities to avoid log(0)
         # We can either tf.clip_by_value(D_prob, D_prob_clip_epsilon, 1 - D_prob_clip_epsilon) or add D_prob_clip_epsilon in the loss functions inside the logs maybe
@@ -271,7 +271,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
         D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob_clipped) + (1 - M) * tf.log(1. - D_prob_clipped))
         G_loss_temp = -tf.reduce_mean((1 - M) * tf.log(D_prob_clipped))
 
-    # Else keep the original tf nodes
+    # Else keep the original tf nodes with no clipping
     else:
         # add epsilon in the logs to prevent nans
         D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob + D_prob_clip_epsilon) + (1 - M) * tf.log(1. - D_prob + D_prob_clip_epsilon))
@@ -285,7 +285,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # -- S-GAIN solver ------------------------------------------------------------------------------------------------
 
-    # We explicitly create the optimisers and solvers to capture the gradients for checking NANs
+    # We explicitly create the optimisers and solvers to capture the gradients. We need this for GraSP and SNIP
 
     D_optimizer = tf.train.AdamOptimizer()
     G_optimizer = tf.train.AdamOptimizer()
@@ -298,6 +298,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # Mask variables
     
+    # We need these variables for calculating masks and strategy parameters
     generator_weights = [G_W1, G_W2, G_W3]
     generator_grad_dict = {v: g for (g, v) in G_grads_and_vars}
     generator_weight_grads = [generator_grad_dict[w] for w in generator_weights]
@@ -321,7 +322,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # Generator DST 
 
-    # Parse the modality if required by the modality
+    # Parse the modality if it carries information describing a DST (a custom modality)
     if parse_gm:
         generator_init_strategy, generator_prune_strategy, generator_regrow_strategy = \
             create_dst_strategies(generator_modality, generator_sparsity, generator_weight_counts, iterations)
@@ -413,6 +414,8 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # Apply the mask to start
     sess.run(discriminator_apply_masks_op)
+
+    # The generator mask was already applied above (check if uncertain)
 
     for it in tqdm(range(iterations)):
 
