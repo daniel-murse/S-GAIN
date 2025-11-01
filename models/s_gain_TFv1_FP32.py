@@ -31,6 +31,7 @@ from strategies.initialisation.magnitude_initialisation_strategy import Magnitud
 from strategies.initialisation.random_initialisation_strategy import RandomInitialisationStrategy
 from strategies.initialisation.snip_initialisation_strategy import SNIPInitialisationStrategy
 from strategies.parsing.create_count_func import create_count_func
+from strategies.parsing.parse_strategies import create_dst_strategies
 from strategies.pruning.magnitude_prune_strategy import MagnitudePruneStrategy
 from strategies.pruning.random_prune_strategy import RandomPruneStrategy
 from strategies.regrowing.random_normal_xavier_regrow_strategy import RandomNormalXavierRegrowStrategy
@@ -132,7 +133,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     elif generator_modality == 'RSensitivity':
         return None
-    else: # NOTE HACK we use allow any modality here for simpicity in manual parsing of the name for parameters
+    else: # NOTE HACK we use allow any modality here for simpicity in manual parsing of the name for parameters; erroneous modalities are handled later
 
         # Normal xavier init for the weights for all strategies; no strategy discriminates this except maybe ER but that is handled above
         G_W1 = normal_xavier_init([dim * 2, h_dim])
@@ -158,16 +159,11 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     theta_G = [G_W1, G_W2, G_W3, G_b1, G_b2, G_b3]
 
+    # By default the discriminator modality should not be parsed
+    parse_dm = False
+
     # Discriminator variables: Data + Hint as inputs
-    if discriminator_modality in ('dense', 'random', 'GraSP'):
-        D_W1 = normal_xavier_init([dim * 2, h_dim])
-        D_W2 = normal_xavier_init([h_dim, h_dim])
-        D_W3 = normal_xavier_init([h_dim, dim])
-
-        if discriminator_modality == 'random':
-            D_W1, D_W2, D_W3 = random_init([D_W1, D_W2, D_W3], discriminator_sparsity)
-
-    elif discriminator_modality in ('ER', 'ERK', 'ERRW', 'ERKRW'):
+    if discriminator_modality in ('ER', 'ERK', 'ERRW', 'ERKRW'):
         D_Ws = {
             'D_W1': np.zeros([dim * 2, h_dim]),
             'D_W2': np.zeros([h_dim, h_dim]),
@@ -182,16 +178,20 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
             D_W1, D_W2, D_W3 = erdos_renyi_random_weights_init(D_Ws, discriminator_sparsity).values()
         else:  # ERKRW
             return None
-
-    elif discriminator_modality == 'SNIP':
-        return None
-
+        
     elif discriminator_modality == 'RSensitivity':
         return None
 
-    else:  # This should not happen.
-        print(f'Invalid discriminator modality "{discriminator_modality}". Exiting the program.')
-        return None
+    else:
+        D_W1 = normal_xavier_init([dim * 2, h_dim])
+        D_W2 = normal_xavier_init([h_dim, h_dim])
+        D_W3 = normal_xavier_init([h_dim, dim])
+
+        if(discriminator_modality not in ("dense")):
+            parse_dm = True
+    # else:  # This should not happen.
+    #     print(f'Invalid discriminator modality "{discriminator_modality}". Exiting the program.')
+    #     return None
 
     D_W1 = tf.Variable(D_W1)
     D_b1 = tf.Variable(tf.zeros(shape=[h_dim]))
@@ -234,7 +234,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     use_clipping = True
     # If we should check for clipping
     log_clipping = True and use_clipping
-    # todo add epsilon constants for clipping
+    D_prob_clip_epsilon = 1e-8
 
     # Generator
     G_sample = generator(X, M)
@@ -250,13 +250,14 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     # Set TF nodes for clipping
     if use_clipping:
         # Clip discriminator probabilities to avoid log(0)
-        # We can either tf.clip_by_value(D_prob, 1e-7, 1 - 1e-7) or add 1e-8 in the loss functions inside the logs maybe
-        D_prob_clipped = tf.clip_by_value(D_prob, 1e-7, 1 - 1e-7)
+        # We can either tf.clip_by_value(D_prob, D_prob_clip_epsilon, 1 - D_prob_clip_epsilon) or add D_prob_clip_epsilon in the loss functions inside the logs maybe
+        # We will add if clipping is disabled to still have some safety
+        D_prob_clipped = tf.clip_by_value(D_prob, D_prob_clip_epsilon, 1 - D_prob_clip_epsilon)
         # D_prob_clipped = D_prob_clipped # disables clipping the probability entirely
 
         # Boolean flags for logging if clipping occurred
         if log_clipping:
-            D_prob_clipped_flags = tf.logical_or(D_prob < 1e-7, D_prob > 1 - 1e-7)
+            D_prob_clipped_flags = tf.logical_or(D_prob < D_prob_clip_epsilon, D_prob > 1 - D_prob_clip_epsilon)
 
             # Percentage of clipped probabilities for feature discrimination
             D_prob_clipped_percentage = tf.reduce_mean(tf.cast(D_prob_clipped_flags, tf.float32))
@@ -272,8 +273,9 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # Else keep the original tf nodes
     else:
-        D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob + 1e-8) + (1 - M) * tf.log(1. - D_prob + 1e-8))
-        G_loss_temp = -tf.reduce_mean((1 - M) * tf.log(D_prob + 1e-8))
+        # add epsilon in the logs to prevent nans
+        D_loss_temp = -tf.reduce_mean(M * tf.log(D_prob + D_prob_clip_epsilon) + (1 - M) * tf.log(1. - D_prob + D_prob_clip_epsilon))
+        G_loss_temp = -tf.reduce_mean((1 - M) * tf.log(D_prob + D_prob_clip_epsilon))
         MSE_loss = tf.reduce_mean((M * X - M * G_sample) ** 2) / tf.reduce_mean(M)
 
     D_loss = D_loss_temp
@@ -302,6 +304,12 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     generator_weight_counts = [w.shape.num_elements() for w in generator_weights]
     generator_masks = [tf.Variable(tf.ones_like(w), trainable=False) for w in generator_weights]
 
+    discriminator_weights = [D_W1, D_W2, D_W3]
+    discriminator_grad_dict = {v: g for (g, v) in D_grads_and_vars}
+    discriminator_weight_grads = [discriminator_grad_dict[w] for w in discriminator_weights]
+    discriminator_weight_counts = [w.shape.num_elements() for w in discriminator_weights]
+    discriminator_masks = [tf.Variable(tf.ones_like(w), trainable=False) for w in discriminator_weights]
+
     # -- S-GAIN training ----------------------------------------------------------------------------------------------
 
     if verbose: print('Training S-GAIN...')
@@ -311,91 +319,29 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     
     # Initialise the DST strategy
 
-    # Parse the modality
+    # Generator DST 
+
+    # Parse the modality if required by the modality
     if parse_gm:
-        generator_strategy_sections_params = tokenise_modality(generator_modality)
-    
-        # We prefix the modality params with a version prefix for how the lexemes are to be parsed
-        # With this prefix we can change how many sections are expected and what they represent, etc. 
-        if generator_strategy_sections_params[0][0] == "constant_sparsity" and len(generator_strategy_sections_params[0][1]) == 0 and len(generator_strategy_sections_params) == 3:
-
-            # So far we expect "v1[]" + ("none" or "mask_init_prune_randomly" or mask_init_prune_magnitude) + "[]"
-            generator_init_mode, generator_init_params = generator_strategy_sections_params[1]
-            if(len(generator_init_params) != 0):
-                print("Invalid init strategy", generator_strategy_sections_params[1])
-                return None
-            if generator_init_mode in ("dense"):
-                generator_init_strategy = None
-            elif generator_init_mode in ("random"):
-                generator_init_strategy = RandomInitialisationStrategy(generator_sparsity)
-            elif generator_init_mode in ("magnitude"):
-                generator_init_strategy = MagnitudeInitialisationStrategy(generator_sparsity)
-            elif generator_init_mode in ("grasp"):
-                generator_init_strategy = GraSPInitialisationStrategy(generator_sparsity)
-            elif generator_init_mode in ("snip"):
-                generator_init_strategy = SNIPInitialisationStrategy(generator_sparsity)
-            else:
-                print("Invalid init strategy")
-                return None
-
-            # So far we expect "v1[]" + ("none" or "mask_init_prune_randomly" or mask_init_prune_magnitude) + "[]"
-            generator_prune_mode, generator_prune_params = generator_strategy_sections_params[2]
-            if (generator_prune_mode != "static" or len(generator_prune_params) != 0) and (len(generator_prune_params) != 6 or generator_prune_params[0] != "period" or generator_prune_params[2] != "fraction" or generator_prune_params[4] != "decay"):
-                print("Invalid prune strategy", generator_strategy_sections_params[2])
-                return None
-            
-            if generator_prune_mode == "static":
-                generator_prune_strategy = None
-            else: 
-                generator_prune_period = int(generator_prune_params[1])
-                generator_prune_fraction = (float(generator_prune_params[3]) / 100) * generator_sparsity
-                generator_prune_decay = generator_prune_params[5]
-
-                decay_funcs = {
-                    "constant": lambda p: generator_prune_fraction if p != 0 and p % generator_prune_period == 0 else None,
-                    "cosine":   lambda p: generator_prune_fraction * np.cos((np.pi * p) / (iterations * 2)) if p  != 0 and p % generator_prune_period == 0 else None,
-                }
-
-                if generator_prune_decay not in decay_funcs:
-                    print("Invalid prune strategy decay", generator_strategy_sections_params[2])
-                    return None
-
-                generator_fraction_func = decay_funcs.get(generator_prune_decay)
-
-                # This determines how many to prune and regrow, as we prune n regrow n
-                generator_count_func = create_count_func(generator_fraction_func, generator_prune_period, generator_weight_counts)
-
-                if generator_prune_mode == "random":
-                    generator_prune_strategy = RandomPruneStrategy(generator_count_func)
-                elif generator_prune_mode == "magnitude":
-                    generator_prune_strategy = MagnitudePruneStrategy(generator_count_func)
-                else:
-                    print("Invalid prune strategy mode", generator_strategy_sections_params[2])
-                    return None
-            
-            if generator_prune_strategy is not None:
-                generator_regrow_strategy = RandomNormalXavierRegrowStrategy(generator_count_func)
-            else:
-                generator_regrow_strategy = None
-            
-        else:
-            print("Invalid generator modality", generator_modality, "parsed as", generator_strategy_sections_params)
-            return None
-        
+        generator_init_strategy, generator_prune_strategy, generator_regrow_strategy = \
+            create_dst_strategies(generator_modality, generator_sparsity, generator_weight_counts, iterations)
+    # Else use no strategy (dense or er was used as the modality)
     else:
         generator_init_strategy = None
         generator_prune_strategy = None
         generator_regrow_strategy = None
 
+    # This op will apply the masks to the weights. We need to run this after every training iteration to stop updates to the masked params
+    # We can cache this op as long as our tf.Variable instances remain the same (which they do)
     generator_apply_masks_op = tf.group(*[
         tf.assign(w, w * m)
         for w, m in zip(generator_weights, generator_masks)
     ])
     
+    # Init the mask if the init strategy exits
     if generator_init_strategy is not None:
-        print("initing")
+        # Optionally use a mini batch if the strategy requires it (snip, grasp)
         if(generator_init_strategy.get_requires_mini_batch()):
-            print("minibatching")
             mask_updates = generator_init_strategy.get_tf_mask_initialisation_tensors(generator_weights, generator_weight_grads)
             assign_ops = [tf.assign(mask_var, new_mask) for mask_var, new_mask in zip(generator_masks, mask_updates)]
             batch_idx = sample_batch_index(no, batch_size)
@@ -412,22 +358,71 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
             # Combine random vectors with observed vectors
             X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb
             sess.run(assign_ops, feed_dict={M: M_mb, X: X_mb, H: H_mb})
+        # Else just get the mask from the weights (random/magnitude prune)
         else:
             mask_updates = generator_init_strategy.get_tf_mask_initialisation_tensors(generator_weights)
             assign_ops = [tf.assign(mask_var, new_mask) for mask_var, new_mask in zip(generator_masks, mask_updates)]
             sess.run(assign_ops)
 
+    # Discriminator DST
+    
+    # Parse the modality if required by the modality
+    if parse_dm:
+        discriminator_init_strategy, discriminator_prune_strategy, discriminator_regrow_strategy = \
+            create_dst_strategies(discriminator_modality, discriminator_sparsity, discriminator_weight_counts, iterations)
+    # Else use no strategy (dense or er was used as the modality)
+    else:
+        discriminator_init_strategy = None
+        discriminator_prune_strategy = None
+        discriminator_regrow_strategy = None
+
+    # This op will apply the masks to the weights. We need to run this after every training iteration to stop updates to the masked params
+    # We can cache this op as long as our tf.Variable instances remain the same (which they do)
+    discriminator_apply_masks_op = tf.group(*[
+        tf.assign(w, w * m)
+        for w, m in zip(discriminator_weights, discriminator_masks)
+    ])
+    
+    # Init the mask if the init strategy exits
+    if discriminator_init_strategy is not None:
+        # Optionally use a mini batch if the strategy requires it (snip, grasp)
+        if(discriminator_init_strategy.get_requires_mini_batch()):
+            mask_updates = discriminator_init_strategy.get_tf_mask_initialisation_tensors(discriminator_weights, discriminator_weight_grads)
+            assign_ops = [tf.assign(mask_var, new_mask) for mask_var, new_mask in zip(discriminator_masks, mask_updates)]
+            batch_idx = sample_batch_index(no, batch_size)
+            X_mb = norm_data_x[batch_idx, :]
+            M_mb = data_mask[batch_idx, :]
+
+            # Sample random vectors
+            Z_mb = uniform_sampler(0, 0.01, batch_size, dim)
+
+            # Sample hint vectors
+            H_mb_temp = binary_sampler(hint_rate, batch_size, dim)
+            H_mb = M_mb * H_mb_temp
+
+            # Combine random vectors with observed vectors
+            X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb
+            sess.run(assign_ops, feed_dict={M: M_mb, X: X_mb, H: H_mb})
+        # Else just get the mask from the weights (random/magnitude prune)
+        else:
+            mask_updates = discriminator_init_strategy.get_tf_mask_initialisation_tensors(discriminator_weights)
+            assign_ops = [tf.assign(mask_var, new_mask) for mask_var, new_mask in zip(discriminator_masks, mask_updates)]
+            sess.run(assign_ops)
+
     # Training loop
 
     # Apply the mask to start
-    sess.run(generator_apply_masks_op)
+    sess.run(discriminator_apply_masks_op)
 
     for it in tqdm(range(iterations)):
 
+        # Generator DST enforcement
+        # Prune if the prune strategy exists
         if generator_prune_strategy is not None:
+            # Get the updates to the pruned masks for this iteration
             pruned_masks = generator_prune_strategy.get_tf_pruned_mask_tensors(it, generator_weights, generator_masks)
+            # If there are updates, run them
             if pruned_masks is not None:
-                print("pruning")
                 generator_prune_ops = []
                 generator_prune_ops += [
                     tf.assign(mask_var, new_mask)
@@ -435,6 +430,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
                 ]
                 sess.run(tf.group(*generator_prune_ops))
 
+        # Same for the regrow, but both masks and weights can be changed
         if generator_regrow_strategy is not None:
             regrow_result = generator_regrow_strategy.get_tf_regrowed_mask_and_weight_tensors(
                 it, generator_weights, generator_masks
@@ -461,6 +457,49 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
         # Enforce the mask before calculating sparsity and the forward and backward pass
         sess.run(generator_apply_masks_op)
+
+        # Do the same for the discriminator
+
+        # Prune if the prune strategy exists
+        if discriminator_prune_strategy is not None:
+            # Get the updates to the pruned masks for this iteration
+            pruned_masks = discriminator_prune_strategy.get_tf_pruned_mask_tensors(it, discriminator_weights, discriminator_masks)
+            # If there are updates, run them
+            if pruned_masks is not None:
+                discriminator_prune_ops = []
+                discriminator_prune_ops += [
+                    tf.assign(mask_var, new_mask)
+                    for mask_var, new_mask in zip(discriminator_masks, pruned_masks)
+                ]
+                sess.run(tf.group(*discriminator_prune_ops))
+
+        # Same for the regrow, but both masks and weights can be changed
+        if discriminator_regrow_strategy is not None:
+            regrow_result = discriminator_regrow_strategy.get_tf_regrowed_mask_and_weight_tensors(
+                it, discriminator_weights, discriminator_masks
+            )
+            if regrow_result is not None:
+                print("regrowing")
+                new_weights, new_masks = zip(*regrow_result) if regrow_result else ([], [])
+
+                discriminator_regrow_ops = []
+
+                if new_masks is not None:
+                    discriminator_regrow_ops += [
+                        tf.assign(mask_var, new_mask)
+                        for mask_var, new_mask in zip(discriminator_masks, new_masks)
+                    ]
+
+                if new_weights is not None:
+                    discriminator_regrow_ops += [
+                        tf.assign(weight_var, new_weight)
+                        for weight_var, new_weight in zip(discriminator_weights, new_weights)
+                    ]
+
+                sess.run(discriminator_regrow_ops)
+
+        # Enforce the mask before calculating sparsity and the forward and backward pass
+        sess.run(discriminator_apply_masks_op)
         
         # Log sparsity
         if monitor:
@@ -513,7 +552,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
                     f"D_loss={D_loss_curr}, G_loss={G_loss_curr}, MSE={MSE_loss_curr}")
 
             if has_nans:
-                # TODO add log_nans or something to the monitor?
+                # NOTE currently nans are detected by a nan rmse (afawk)
                 print("Breaking...")
                 break
 
@@ -521,6 +560,7 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
 
     # Reinforce the mask for the last sparsity calculation after the last training forward and backward pass
     sess.run(generator_apply_masks_op)
+    sess.run(discriminator_apply_masks_op)
 
     if monitor:
         monitor.log_imputation_time()

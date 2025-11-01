@@ -68,6 +68,7 @@ def main(args):
     hint_rate = args.hint_rate
     alpha = args.alpha
     iterations = args.iterations
+    # NOTE the modalities are lower cased from the CLI args
     generator_sparsity = args.generator_sparsity
     generator_modality = args.generator_modality.lower()
     discriminator_sparsity = args.discriminator_sparsity
@@ -96,15 +97,7 @@ def main(args):
             return sparsity, 'ERRW'
         elif modality in ('erkrw', 'erdos_renyi_kernel_random_weight'):
             return sparsity, 'ERKRW'
-        elif modality in ('grasp'):
-            return sparsity, 'GraSP'
-        elif modality in ('snip'):
-            return sparsity, 'SNIP'
-        elif modality in ('random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay',):
-            return sparsity, modality
-        elif modality in ('grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
-                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay'):
-            return sparsity, modality
+        # HACK NOTE this used to return None here, but we need to allow sparsities to fall through for passing in DST parameters. 
         return sparsity, modality
 
     generator_sparsity, generator_modality = sparsity_modality(generator_sparsity, generator_modality)
@@ -256,11 +249,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '-gm', '--generator_modality',
         help='the initialization and pruning and regrowth strategy of the generator',
-        # No choices as we parse params from the args now
+        # NOTE No choices as we parse params from the modality now; any modality would be "valid" as a CLI arg
         # choices=['dense', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
         #          'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
-        #          'RSensitivity',
-        #          # NOTE HACK choice combinations need to be added here
+        #          'RSensitivity'
         #          ],
         default='dense',
         type=str)
@@ -272,9 +264,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '-dm', '--discriminator_modality',
         help='the initialization and pruning and regrowth strategy of the discriminator',
-        choices=['dense', 'random', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
-                 'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
-                 'RSensitivity'],
+        # NOTE No choices as we parse params from the modality now; any modality would be "valid" as a CLI arg
+        # choices=['dense', 'random', 'ER', 'erdos_renyi', 'ERK', 'erdos_renyi_kernel', 'ERRW',
+        #          'erdos_renyi_random_weight', 'ERKRW', 'erdos_renyi_kernel_random_weight', 'SNIP', 'GraSP',
+        #          'RSensitivity'],
         default='dense',
         type=str)
     parser.add_argument(
