@@ -8,8 +8,14 @@ so that the implementation of the strategy is cleanly written and remains modula
 """
 
 class InitialisationStrategy:
-    def get_tf_mask_initialisation_tensors(self, weight_tensors):
+    def get_tf_mask_initialisation_tensors(self, weight_tensors, gradient_tensors = None):
         """
         Returns a parallel list to the tf weight tensors, which contains tf nodes that represent initialisation for masks for the weight tensors.
+        """
+        raise NotImplementedError
+    
+    def get_requires_mini_batch(self):
+        """
+        Boolean whether the initialisation strategy requires a minibatch for computation.
         """
         raise NotImplementedError

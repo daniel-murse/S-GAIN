@@ -10,9 +10,12 @@ class RandomInitialisationStrategy(InitialisationStrategy):
         super().__init__()
         self.sparsity = sparsity
 
-    def get_tf_mask_initialisation_tensors(self, weight_tensors):
+    def get_tf_mask_initialisation_tensors(self, weight_tensors, gradient_tensors = None):
         mask_tensors = [tf_mask_init_random(self.sparsity, w) for w in weight_tensors]
         return mask_tensors
+    
+    def get_requires_mini_batch(self):
+        return False
     
 def tf_mask_init_random(sparsity, weight_tensor):
     # NOTE HACK tf_random_mask_init its ok to return a numpy object because tf will cast numpy to a tensor when used in operations

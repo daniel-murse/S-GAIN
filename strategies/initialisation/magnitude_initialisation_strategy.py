@@ -10,10 +10,13 @@ class MagnitudeInitialisationStrategy(InitialisationStrategy):
            super().__init__()
            self.sparsity = sparsity
 
-    def get_tf_mask_initialisation_tensors(self, weight_tensors):
+    def get_tf_mask_initialisation_tensors(self, weight_tensors, gradient_tensors = None):
         # We will return a parallel list to the tf weight tensors representing corresponding tf mask tensors
         mask_tensors = [tf_mask_init_magnitude(self.sparsity, weight_tensor) for weight_tensor in weight_tensors]
         return mask_tensors
+    
+    def get_requires_mini_batch(self):
+         return False
 
 def tf_mask_init_magnitude(sparsity, weight_tensor):
     # The magnitudes in the weight tensor, abs them to sort by magnitude

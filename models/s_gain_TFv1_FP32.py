@@ -25,9 +25,11 @@ Paper Link: https://proceedings.mlr.press/v80/yoon18a/yoon18a.pdf
 
 import numpy as np
 from strategies.grasp_regrow_strategy import GraspRegrowStrategy
+from strategies.initialisation.grasp_initialisation_strategy import GraSPInitialisationStrategy
 from strategies.initialisation.initialisation_strategy import InitialisationStrategy
 from strategies.initialisation.magnitude_initialisation_strategy import MagnitudeInitialisationStrategy
 from strategies.initialisation.random_initialisation_strategy import RandomInitialisationStrategy
+from strategies.initialisation.snip_initialisation_strategy import SNIPInitialisationStrategy
 from strategies.parsing.create_count_func import create_count_func
 from strategies.pruning.magnitude_prune_strategy import MagnitudePruneStrategy
 from strategies.pruning.random_prune_strategy import RandomPruneStrategy
@@ -295,6 +297,8 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     # Mask variables
     
     generator_weights = [G_W1, G_W2, G_W3]
+    generator_grad_dict = {v: g for (g, v) in G_grads_and_vars}
+    generator_weight_grads = [generator_grad_dict[w] for w in generator_weights]
     generator_weight_counts = [w.shape.num_elements() for w in generator_weights]
     generator_masks = [tf.Variable(tf.ones_like(w), trainable=False) for w in generator_weights]
 
@@ -326,6 +330,13 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
                 generator_init_strategy = RandomInitialisationStrategy(generator_sparsity)
             elif generator_init_mode in ("magnitude"):
                 generator_init_strategy = MagnitudeInitialisationStrategy(generator_sparsity)
+            elif generator_init_mode in ("grasp"):
+                generator_init_strategy = GraSPInitialisationStrategy(generator_sparsity)
+            elif generator_init_mode in ("snip"):
+                generator_init_strategy = SNIPInitialisationStrategy(generator_sparsity)
+            else:
+                print("Invalid init strategy")
+                return None
 
             # So far we expect "v1[]" + ("none" or "mask_init_prune_randomly" or mask_init_prune_magnitude) + "[]"
             generator_prune_mode, generator_prune_params = generator_strategy_sections_params[2]
@@ -383,9 +394,28 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
     
     if generator_init_strategy is not None:
         print("initing")
-        mask_updates = generator_init_strategy.get_tf_mask_initialisation_tensors(generator_weights)
-        assign_ops = [tf.assign(mask_var, new_mask) for mask_var, new_mask in zip(generator_masks, mask_updates)]
-        sess.run(assign_ops)
+        if(generator_init_strategy.get_requires_mini_batch()):
+            print("minibatching")
+            mask_updates = generator_init_strategy.get_tf_mask_initialisation_tensors(generator_weights, generator_weight_grads)
+            assign_ops = [tf.assign(mask_var, new_mask) for mask_var, new_mask in zip(generator_masks, mask_updates)]
+            batch_idx = sample_batch_index(no, batch_size)
+            X_mb = norm_data_x[batch_idx, :]
+            M_mb = data_mask[batch_idx, :]
+
+            # Sample random vectors
+            Z_mb = uniform_sampler(0, 0.01, batch_size, dim)
+
+            # Sample hint vectors
+            H_mb_temp = binary_sampler(hint_rate, batch_size, dim)
+            H_mb = M_mb * H_mb_temp
+
+            # Combine random vectors with observed vectors
+            X_mb = M_mb * X_mb + (1 - M_mb) * Z_mb
+            sess.run(assign_ops, feed_dict={M: M_mb, X: X_mb, H: H_mb})
+        else:
+            mask_updates = generator_init_strategy.get_tf_mask_initialisation_tensors(generator_weights)
+            assign_ops = [tf.assign(mask_var, new_mask) for mask_var, new_mask in zip(generator_masks, mask_updates)]
+            sess.run(assign_ops)
 
     # Training loop
 
