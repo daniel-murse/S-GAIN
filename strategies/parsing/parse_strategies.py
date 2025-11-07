@@ -18,9 +18,17 @@ def create_dst_strategies(
 ):
     """
     Parse a DST modality string and construct the corresponding initialization, pruning, and regrowth strategies.
+    This will create a DST strategy with constant sparsity, as regrowth and initialisation is implied: prune n regrow n (keep sparsity constant) and use normal xavier initialisation.
+    This mimics the functionality for the experiments but with a structured revised logic and format for parsing modalties.
 
     modality must have the shape:
-    "constant_sparsity@@" + ("dense" or "random" or "magnitude" or "snip" or "grasp") + "@@" + ( ("static@@") or ( ("random" or "magnitude") + "@period+<int>+fraction<int_percentage>+decay<constant or cosine>@" ) )
+    "v0@@" + ("dense" or "random" or "magnitude" or "snip" or "grasp") + "@@" + ( ("static@@") or ( ("random" or "magnitude") + "@+<int>+<float>+<constant or cosine>@" ) )
+
+    Essentially: 
+    v0@@<MASK_INIT>@@<PRUNE_MODE>@<PRUNE_OPTIONS>@
+    
+    MASK_INIT can be "dense", "random" "magnitude" "snip" "grasp"
+    PRUNE_MODE can be "static" with no options, or "random" "magnitude" with options = "<PRUNE_PERIOD_ITERATIONS>+<PRUNE_FRACTION_FLOAT>+<DECAY constant or cosine>"
 
     Returns:
         (init_strategy, prune_strategy, regrow_strategy)

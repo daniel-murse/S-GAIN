@@ -327,33 +327,9 @@ def get_experiments(datasets, miss_rates=None, miss_modalities=None, seeds=None,
             for modality in modalities if modality == 'dense'
         ]
         sparsity_modality += [
-            (sparsity, 'random')
+            (sparsity, modality)
             for sparsity in sparsities if sparsity > 0
-            for modality in modalities if modality == 'random'
-        ]
-        sparsity_modality += [
-            (sparsity, 'magnitude')
-            for sparsity in sparsities if sparsity > 0
-            for modality in modalities if modality == 'magnitude'
-        ]
-        sparsity_modality += [
-            (sparsity, 'GraSP') for sparsity in sparsities if sparsity > 0
-            for modality in modalities if modality == 'GraSP'
-        ]
-        
-        sparsity_modality += [
-            (sparsity, 'SNIP') for sparsity in sparsities if sparsity > 0
-            for modality in modalities if modality == 'SNIP'
-        ]
-        sparsity_modality += [
-            (sparsity, modality) for sparsity in sparsities if sparsity > 0
-            for modality in modalities if modality in ('random_regrow', 'magnitude_regrow', 'random_regrow_decay', 'magnitude_regrow_decay')
-            # TODO NOTE can have a prefix check for modality here instead of an equality check to allow carrying over information to the s-gain function
-        ]
-        sparsity_modality += [
-            (sparsity, modality) for sparsity in sparsities if sparsity > 0
-            for modality in modalities if modality in ('grasp_random_regrow', 'snip_random_regrow', 'grasp_random_regrow_decay', 'snip_random_regrow_decay',
-                 'grasp_magnitude_regrow', 'snip_magnitude_regrow', 'grasp_magnitude_regrow_decay', 'snip_magnitude_regrow_decay')
+            for modality in modalities if modality not in ('dense', 'ER', 'ERK', 'ERRW', 'ERKRW')
         ]
         sparsity_modality += [
             (sparsity, 'ER')

@@ -7,3 +7,4 @@ output_run_experiments*
 analysis*
 temp/
 temp2/
+.vscode/
