@@ -439,7 +439,6 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
                 it, generator_weights, generator_masks
             )
             if regrow_result is not None:
-                print("regrowing")
                 new_weights, new_masks = zip(*regrow_result) if regrow_result else ([], [])
 
                 generator_regrow_ops = []
@@ -482,7 +481,6 @@ def s_gain(miss_data_x, batch_size=128, hint_rate=0.9, alpha=100, iterations=100
                 it, discriminator_weights, discriminator_masks
             )
             if regrow_result is not None:
-                print("regrowing")
                 new_weights, new_masks = zip(*regrow_result) if regrow_result else ([], [])
 
                 discriminator_regrow_ops = []

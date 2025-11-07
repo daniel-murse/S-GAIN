@@ -63,6 +63,5 @@ class RandomPruneStrategy(PruneStrategy):
     def get_tf_pruned_mask_tensors(self, training_loop_iteration, weight_tensors, mask_tensors):
         prune_counts = self.prune_count_func(training_loop_iteration)
         if prune_counts is not None:
-            print("rpune", prune_counts)
             return [tf_mask_prune_random_count(m, pc) for m, pc in zip(mask_tensors, prune_counts) if pc is not None]
         return None

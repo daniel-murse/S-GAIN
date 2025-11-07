@@ -36,7 +36,6 @@ class RandomNormalXavierRegrowStrategy(RegrowStrategy):
     def get_tf_regrowed_mask_and_weight_tensors(self, training_loop_iteration, weight_tensors, mask_tensors):
         regrow_counts = self.regrow_count_func(training_loop_iteration)
         if(regrow_counts is not None):
-            print("regrow", regrow_counts)
 
             return [tf_mask_and_weight_regrow_randomly_normal_xavier_init_count(w, m, rc) for (w, m), rc in zip(zip(weight_tensors, mask_tensors), regrow_counts) if rc is not None]
         return None

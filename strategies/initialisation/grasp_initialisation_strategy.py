@@ -27,7 +27,7 @@ def tf_create_grasp_scores(weights, grads):
     # grad_dot = sum_i <g_i, g_i>
     grad_dot = tf.add_n([tf.reduce_sum(g * g) for g in grads])
 
-    # Hessian-gradient product approximation
+    # Hessian-gradient product
     # This causes the 2nd backward pass (gradient of gradient dot w.r.t. weights)
     Hg = tf.gradients(grad_dot, weights)
 
