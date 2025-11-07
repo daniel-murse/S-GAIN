@@ -55,11 +55,11 @@ hint_rates = [0.9]
 alphas = [100]
 iterations_s = [10000]
 generator_sparsities = [0, 0.8]
-generator_modalities = ['dense', 'v0@@snip@@random@200+0.3+constant@']
+generator_modalities = ['dense', 'v0@@snip@@random@200+0.3+constant@', 'v0@@grasp@@magnitude@400+0.3+cosine@']
 discriminator_sparsities = [0, 0.8]
-discriminator_modalities = ['dense', 'v0@@grasp@@magnitude@400+0.3+cosine@']
-n_runs = 2
-output_folder = 'output_run_experiments_final'  # Default: 'output'
+discriminator_modalities = ['dense',]
+n_runs = 1
+output_folder = 'output_run_experiments_2'  # Default: 'output'
 ignore_existing_files = False  # Default: False
 retry_failed_experiments = True  # Default: True
 loop_until_complete = True  # Only works when retry_failed_experiments = True and ignore_existing_files = False
@@ -70,7 +70,7 @@ no_model = False  # Default: False
 no_save = False  # Default: False
 no_system_information = False  # Default: False
 analyze = True  # Automatically analyze the experiments after completion
-analysis_folder = 'analysis_fina'  # Default: 'analysis'
+analysis_folder = 'analysis_2'  # Default: 'analysis'
 auto_shutdown = False  # Default: False
 
 
